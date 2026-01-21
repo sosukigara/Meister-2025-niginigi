@@ -1,4 +1,5 @@
 // 動作確認済みバージョン (Once it works!)
+#include <Adafruit_NeoPixel.h>
 #include <Arduino.h>
 #include <ESP32Servo.h>
 #include <ESPmDNS.h>
@@ -562,12 +563,29 @@ input:checked + .slider:before { transform: translateX(22px); }
       <input type="number" id="inp-reach" value="0.5" step="0.1" style="width:80px; padding:12px; border-radius:12px; border:1px solid #ddd; text-align:center; font-size:1.1rem; font-weight:700;" onchange="saveReach(this.value)">
     </div>
 
-    <div class="setting-item" style="flex-direction:row; align-items:center; justify-content:space-between;">
-      <span class="s-label">外部出力 (Pin 13)</span>
-      <label class="switch">
-        <input type="checkbox" id="chk-pin13" onchange="togglePin13(this)">
-        <span class="slider round"></span>
-      </label>
+    </div>
+
+    <!-- LED Control -->
+    <div class="setting-item">
+      <div class="s-header">
+        <span class="s-label">LED制御 (Pin 13)</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <span style="font-size:0.9rem; color:var(--text-sub);">手動モード</span>
+        <label class="switch" style="transform:scale(0.8);">
+          <input type="checkbox" id="chk-led-manual" onchange="toggleLedMode(this)">
+          <span class="slider round"></span>
+        </label>
+      </div>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <input type="color" id="inp-led-color" value="#ff0000" style="height:40px; border:none; background:none; cursor:pointer;" onchange="setLedColorHex(this.value)">
+        <div style="display:flex; gap:8px;">
+          <button onclick="setLedColor(255,0,0)" style="background:#ffdddd; color:#ff0000; border:none; padding:8px 12px; border-radius:8px; font-weight:bold;">赤</button>
+          <button onclick="setLedColor(0,255,0)" style="background:#ddffdd; color:#00aa00; border:none; padding:8px 12px; border-radius:8px; font-weight:bold;">緑</button>
+          <button onclick="setLedColor(0,0,255)" style="background:#ddddff; color:#0000ff; border:none; padding:8px 12px; border-radius:8px; font-weight:bold;">青</button>
+          <button onclick="setLedColor(0,0,0)" style="background:#eee; color:#333; border:none; padding:8px 12px; border-radius:8px; font-weight:bold;">OFF</button>
+        </div>
+      </div>
     </div>
     
     <!-- 個別サーボ位置補正 -->
@@ -823,6 +841,22 @@ function updSensorLbl(isOn) {
 function manualServo(pct) {
   document.getElementById('man-val').innerText = pct + "%";
   fetch('/api/manual?val=' + pct);
+}
+
+function toggleLedMode(el) {
+  const mode = el.checked ? "manual" : "auto";
+  fetch('/api/led_mode?mode=' + mode);
+}
+function setLedColorHex(hex) {
+  fetch('/api/led?color=' + encodeURIComponent(hex));
+  document.getElementById('chk-led-manual').checked = true;
+}
+function setLedColor(r,g,b) {
+  fetch(`/api/led?r=${r}&g=${g}&b=${b}`);
+  document.getElementById('chk-led-manual').checked = true;
+  // カラーピッカーの値も更新（近似）
+  const hex = "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+  document.getElementById('inp-led-color').value = hex;
 }
 
 function updVal(id, v, unit) { document.getElementById(id).innerText = v + unit; }
@@ -1269,6 +1303,20 @@ Servo servo1, servo2, servo3;
 const int PIN_SERVO1 = 25;
 const int PIN_SERVO2 = 26;
 const int PIN_SERVO3 = 27;
+
+// --- WS2812B LED設定 ---
+#define LED_COUNT 32
+#define LED_PIN 13
+Adafruit_NeoPixel pixels(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
+bool ledManualMode = false;   // true=ユーザー手動操作中, false=ステート連動
+uint32_t currentLedColor = 0; // 現在の色 (Manual時保持用)
+
+void updateLed(uint32_t color) {
+  for (int i = 0; i < pixels.numPixels(); i++) {
+    pixels.setPixelColor(i, color);
+  }
+  pixels.show();
+}
 
 // --- サーボ設定 ---
 const int US_AT_0_DEG = 500;    // 0度 (閉/強)
@@ -1762,6 +1810,44 @@ void handleApiServoLimit() {
   }
 }
 
+void handleApiLed() {
+  int r = 0, g = 0, b = 0;
+  if (server.hasArg("color")) {
+    String hex = server.arg("color");
+    if (hex.startsWith("#"))
+      hex = hex.substring(1);
+    long number = strtol(hex.c_str(), NULL, 16);
+    r = (number >> 16) & 0xFF;
+    g = (number >> 8) & 0xFF;
+    b = number & 0xFF;
+  } else if (server.hasArg("r") && server.hasArg("g") && server.hasArg("b")) {
+    r = server.arg("r").toInt();
+    g = server.arg("g").toInt();
+    b = server.arg("b").toInt();
+  }
+
+  ledManualMode = true; // Switch to manual mode
+  currentLedColor = pixels.Color(r, g, b);
+  updateLed(currentLedColor);
+
+  Serial.printf("[API] LED Manual: R%d G%d B%d\n", r, g, b);
+  server.send(200, "text/plain", "OK");
+}
+
+void handleApiLedMode() {
+  if (server.hasArg("mode")) {
+    String m = server.arg("mode");
+    if (m == "auto") {
+      ledManualMode = false;
+      Serial.println("[API] LED Mode: Auto");
+    } else {
+      ledManualMode = true;
+      Serial.println("[API] LED Mode: Manual");
+    }
+  }
+  server.send(200, "text/plain", "OK");
+}
+
 void handleApiSensorMode() {
   if (server.hasArg("val")) {
     sensorEnabled = (server.arg("val").toInt() == 1);
@@ -1808,8 +1894,12 @@ void setup() {
   pinMode(33, INPUT);  // Echo
 
   pinMode(13, OUTPUT);
+  // digitalWrite(13, pin13State ? HIGH : LOW);
 
-  digitalWrite(13, pin13State ? HIGH : LOW);
+  // NeoPixel Init
+  pixels.begin();
+  pixels.setBrightness(50); // 適度な明るさ
+  pixels.show();            // Initialize all pixels to 'off'
 
   ESP32PWM::allocateTimer(0);
   ESP32PWM::allocateTimer(1);
@@ -1848,7 +1938,7 @@ void setup() {
   server.on("/api/start", handleApiStart);
   server.on("/api/stop", handleApiStop);
   server.on("/api/settings", handleApiSettings);
-  server.on("/api/pin13", handleApiPin13);
+  // server.on("/api/pin13", handleApiPin13);
   server.on("/api/manual", handleApiManual);
   server.on("/api/manual_angle", handleApiManualAngle);
   server.on("/api/servo_all", handleApiServoAll);
@@ -1857,7 +1947,10 @@ void setup() {
   server.on("/api/servo_offset", handleApiServoOffset);
   server.on("/api/servo_limit", handleApiServoLimit);
   server.on("/api/sensor_mode", handleApiSensorMode);
+
   server.on("/api/distance", handleApiDistance);
+  server.on("/api/led", handleApiLed);
+  server.on("/api/led_mode", handleApiLedMode);
 
   // Captive Portal Redirect
   server.onNotFound([]() { handleRoot(); });
@@ -1907,7 +2000,41 @@ void loop() {
       attachAllServos();
       setAllServosAngle(270);
     }
+    if (currentState == PREPARE_SQUEEZE) {
+      attachAllServos();
+      setAllServosAngle(270);
+    }
     lastState = currentState;
+  }
+
+  // --- LED Auto Control ---
+  static State lastLedState = (State)-1;
+  static bool lastLedManualMode = false;
+  static uint32_t lastLedManualColor = 0;
+
+  // Manual Mode Change Check or State Change or Manual Color Change
+  bool needLedUpdate = false;
+
+  if (ledManualMode != lastLedManualMode)
+    needLedUpdate = true;
+  if (!ledManualMode && currentState != lastLedState)
+    needLedUpdate = true;
+  if (ledManualMode && lastLedManualColor != currentLedColor)
+    needLedUpdate = true;
+
+  if (needLedUpdate) {
+    if (ledManualMode) {
+      updateLed(currentLedColor);
+      lastLedManualColor = currentLedColor;
+    } else {
+      if (currentState == IDLE || currentState == WAIT_CYCLE) {
+        updateLed(pixels.Color(255, 0, 0)); // Red
+      } else {
+        updateLed(pixels.Color(0, 255, 0)); // Green
+      }
+    }
+    lastLedState = currentState;
+    lastLedManualMode = ledManualMode;
   }
 
   switch (currentState) {
