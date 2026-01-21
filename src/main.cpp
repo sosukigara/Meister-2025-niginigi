@@ -1401,6 +1401,7 @@ void setServoAngleSafe(int servoNum, int targetAngle) {
 
   // 4. 出力
   int us = map(correctedAngle, 0, 270, US_AT_0_DEG, US_AT_270_DEG);
+  Serial.printf("S%d->%d(%dus)\n", servoNum, correctedAngle, us); // Debug
 
   if (servoNum == 1) {
     if (!servo1.attached())
@@ -1819,7 +1820,14 @@ void setup() {
   servo2.setPeriodHertz(50);
   servo3.setPeriodHertz(50);
 
-  attachAllServos();
+  // attachAllServos();
+  Serial.printf("Servo1 attached: %d\n",
+                servo1.attach(PIN_SERVO1, US_AT_0_DEG, US_AT_270_DEG));
+  Serial.printf("Servo2 attached: %d\n",
+                servo2.attach(PIN_SERVO2, US_AT_0_DEG, US_AT_270_DEG));
+  Serial.printf("Servo3 attached: %d\n",
+                servo3.attach(PIN_SERVO3, US_AT_0_DEG, US_AT_270_DEG));
+
   setAllServosAngle(270); // 初期位置
 
   // --- AP Mode Setup (Yakisoba-Shiro) ---
