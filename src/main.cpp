@@ -777,9 +777,10 @@ function showToast(msg) {
 // Global Vars
 let isRunning = false;
 let isStarting = false;
+let isManualStop = false;
+let hasSessionFinished = false; // Debounce flag -> true when finished, reset on start
 let sessionStartTime = 0;
 let sessionTotalDur = 0; 
-let isManualStop = false;
 let tgtCount = 3;
 let currentPresetName = "Custom";
 let lastStatus = "IDLE";
@@ -870,8 +871,9 @@ function updTimeDisp() {
   if (isRunning) return; 
   const h = parseFloat(document.getElementById('inp-hold').value) || 0.5;
   const r = parseFloat(document.getElementById('inp-reach').value) || 0.5;
-  // 理論値(WAIT除外) + マージン(0.5s) → 余り時間を消すための短め設定
-  const total = (tgtCount * ((r * 2) + h)) + 0.5;
+  // 理論値(WAIT除外) + マージン(0.3s init) + サイクルオーバーヘッド(0.3s)
+  // Backend: (targetCount * (reach*2 + hold + 0.3)) + 0.3
+  const total = (tgtCount * ((r * 2) + h + 0.3)) + 0.3;
   document.getElementById('time-display').innerText = fmtTime(Math.ceil(total));
   // sessionTotalDur = total; // 修正
 }
@@ -900,7 +902,7 @@ function setPreset(mode, el) {
     count = 3;
   }
   if(mode==='kosen') { 
-    s.value=100; 
+    s.value=90; 
     count = 5;
   }
   
@@ -1044,6 +1046,12 @@ function syncStatus() {
       
       if(d.state !== 'IDLE') {
         isStarting = false; // 状態遷移を確認したらフラグ解除
+        
+        // Reset finished flag if we are running again (and not FINISHED_BLINK)
+        if (d.state !== 'FINISHED_BLINK') {
+            hasSessionFinished = false; 
+        }
+
         if (!isRunning) {
           isRunning = true;
           document.body.classList.add('running');
@@ -1094,12 +1102,17 @@ syncStatus();
 
 function finishSession() {
   if (!isRunning) return; // 既に完了済みなら何もしない
+  
+  // Always clean up UI state
   isRunning = false;
   document.body.classList.remove('running');
   document.getElementById('status-badge').innerText = "待機中";
   document.getElementById('yt-fill').style.width = '0%';
   updTimeDisp(); 
   
+  if (hasSessionFinished) return; // Prevent double modal
+  hasSessionFinished = true;
+
   if (!isManualStop) {
     showCompletionModal();
   }
@@ -1632,8 +1645,10 @@ void handleApiStatus() {
   }
 
   // Exclude WAIT time (0.3s) to prevent timer remaining at the end
-  float cycleDur = (reachTimeSec * 2) + holdTimeSec;
-  float totalDur = (targetCount * cycleDur) + 0.5;
+  // PREPARE (0.3s) + REACH + HOLD + REACH + WAIT (0.3s) = Total Cycle
+  // Corrected: Overhead is 0.3s (WAIT) per cycle + 0.3s (PREPARE) initial
+  float cycleDur = (reachTimeSec * 2) + holdTimeSec + 0.3;
+  float totalDur = (targetCount * cycleDur) + 0.3;
 
   String json = "{";
   json += "\"state\":\"" + s + "\",";
@@ -2070,11 +2085,16 @@ void loop() {
         updateLed(0); // OFF
       } else if (currentState == FINISHED_BLINK) {
         unsigned long elapsed = millis() - stateStartTime;
-        // Blink Logic: 0-700 ON, 700-1400 OFF, 1400-2100 ON, 2100-2800 OFF
+        // Blink Logic: Faster! 0.3s interval, 3 times
+        // 0-300 ON, 300-600 OFF
+        // 600-900 ON, 900-1200 OFF
+        // 1200-1500 ON, 1500-1800 OFF
         bool on = false;
-        if (elapsed < 700)
+        if (elapsed < 300)
           on = true;
-        else if (elapsed >= 1400 && elapsed < 2100)
+        else if (elapsed >= 600 && elapsed < 900)
+          on = true;
+        else if (elapsed >= 1200 && elapsed < 1500)
           on = true;
 
         if (on)
@@ -2084,8 +2104,10 @@ void loop() {
       } else {
         // Progressive Green Bar
         // Calculate total duration
-        float cycleDur = (reachTimeSec * 2) + holdTimeSec;
-        float totalDur = (targetCount * cycleDur) + 0.5; // +0.5 margin
+        // Corrected: Include PREPARE(0.3) + WAIT(0.3) overhead
+        // Corrected: Overhead is 0.3s (WAIT) per cycle + 0.3s (PREPARE) initial
+        float cycleDur = (reachTimeSec * 2) + holdTimeSec + 0.3;
+        float totalDur = (targetCount * cycleDur) + 0.3; // +0.3 margin
         // Current elapsed in session
         // We need sessionStartTime from start
         unsigned long sessionElapsed = millis() - sessionStartTime;
@@ -2156,6 +2178,14 @@ void loop() {
     yield(); // Watchdog reset
     break;
 
+  case FINISHED_BLINK:
+    if (now - stateStartTime >= 1800) {
+      currentState = IDLE;
+      setAllServosAngle(270); // Ensure Reset
+    }
+    yield();
+    break;
+
   case WAIT_CYCLE:
     currentCycle++;
     if (currentCycle < targetCount) {
@@ -2191,22 +2221,6 @@ void loop() {
       // ----------------
     }
     yield(); // Watchdog reset
-    break;
-
-  case FINISHED_BLINK:
-    // 0.7s ON, 0.7s OFF, 0.7s ON, 0.7s OFF -> IDLE
-    {
-      unsigned long elapsed = now - stateStartTime;
-      // 0.0-0.7: ON (Handled by LED Logic)
-      // 0.7-1.4: OFF
-      // 1.4-2.1: ON
-      // 2.1-2.8: OFF
-      // 2.8+: Finish
-      if (elapsed > 2800) {
-        currentState = IDLE;
-      }
-    }
-    yield();
     break;
   }
 }
