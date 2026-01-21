@@ -422,7 +422,7 @@ input:checked + .slider:before { transform: translateX(22px); }
     <div style="display:flex; align-items:center; gap:8px;">
       <div class="conn-dot" id="conn-dot"></div>
       <h1 style="line-height:1; margin:0;">にぎにぎ</h1>
-      <span style="font-size:0.75rem; color:var(--text-sub); font-family:monospace; padding-top:4px;">v1.59</span>
+      <span style="font-size:0.75rem; color:var(--text-sub); font-family:monospace; padding-top:4px;">v1.60</span>
     </div>
 
     <!-- Sensor Control -->
