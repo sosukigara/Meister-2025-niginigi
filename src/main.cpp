@@ -1072,6 +1072,8 @@ function syncStatus() {
 
       } else {
         // IDLEに戻った = 動作完了
+        // FINISHED_BLINK状態も "IDLEではない" のでここには来ない = 完了画面は出ない
+        // FINISHED_BLINK -> IDLE に遷移した瞬間にここに来る
         if (isRunning && !isStarting) {
           finishSession();
         }
@@ -1305,7 +1307,7 @@ const int PIN_SERVO2 = 26;
 const int PIN_SERVO3 = 27;
 
 // --- WS2812B LED設定 ---
-#define LED_COUNT 32
+#define LED_COUNT 35
 #define LED_PIN 13
 Adafruit_NeoPixel pixels(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 bool ledManualMode = false;   // true=ユーザー手動操作中, false=ステート連動
@@ -1360,9 +1362,36 @@ std::vector<HistoryItem> historyLog;
 String currentSessionPreset = "Custom";
 
 // 状態管理
-enum State { IDLE, PREPARE_SQUEEZE, SQUEEZING, HOLDING, RELEASING, WAIT_CYCLE };
-State currentState = IDLE;
-State lastState = IDLE;
+// 状態管理
+/*
+enum State {
+  IDLE,
+  PREPARE_SQUEEZE,
+  SQUEEZING,
+  HOLDING,
+  RELEASING,
+  WAIT_CYCLE,
+  FINISHED_BLINK
+};
+*/
+// 状態定義
+// - IDLE: 待機中
+// - PREPARE_SQUEEZE: 締め付け準備中
+// - SQUEEZING: 締め付け中
+// - HOLDING: 締め付け保持中
+// - RELEASING: 緩め中
+// - WAIT_CYCLE: 次のサイクル待機中
+// - FINISHED_BLINK: 完了点滅中 (IDLEではないので動作中扱い)
+const int IDLE = 0;
+const int PREPARE_SQUEEZE = 1;
+const int SQUEEZING = 2;
+const int HOLDING = 3;
+const int RELEASING = 4;
+const int WAIT_CYCLE = 5;
+const int FINISHED_BLINK = 6;
+
+int currentState = IDLE;
+int lastState = IDLE;
 
 unsigned long stateStartTime = 0;
 unsigned long sessionStartTime = 0;
@@ -1474,23 +1503,24 @@ float readRawDistance() {
   delayMicroseconds(10);
   digitalWrite(32, LOW);
 
-  long duration = pulseIn(33, HIGH, 15000); // 15ms timeout (approx 2.5m)
+  long duration =
+      pulseIn(33, HIGH, 3000); // 3ms timeout (approx 50cm) to fix lag
   if (duration == 0)
     return 999.0;
   return duration * 0.034 / 2.0;
 }
 
 float measureDistance() {
-  // Enhanced Median Filter (5 samples)
-  float readings[5];
-  for (int i = 0; i < 5; i++) {
+  // Enhanced Median Filter (Reduced to 3 samples for speed)
+  float readings[3];
+  for (int i = 0; i < 3; i++) {
     readings[i] = readRawDistance();
-    delay(2);
+    delay(1); // Reduced delay
   }
 
   // Simple Bubble Sort
-  for (int i = 0; i < 4; i++) {
-    for (int j = 0; j < 4 - i; j++) {
+  for (int i = 0; i < 2; i++) {
+    for (int j = 0; j < 2 - i; j++) {
       if (readings[j] > readings[j + 1]) {
         float temp = readings[j];
         readings[j] = readings[j + 1];
@@ -1500,7 +1530,7 @@ float measureDistance() {
   }
 
   // Return Median
-  return readings[2];
+  return readings[1];
 }
 
 // API: Start
@@ -1595,6 +1625,9 @@ void handleApiStatus() {
     break;
   case WAIT_CYCLE:
     s = "WAIT_CYCLE";
+    break;
+  case FINISHED_BLINK:
+    s = "FINISHED_BLINK";
     break;
   }
 
@@ -1970,9 +2003,11 @@ void loop() {
     currentDistance = measureDistance();
     lastDistanceMeasure = now;
 
-    // Sensor Trigger Logic (Consecutive Check)
-    if (sensorEnabled && currentState == IDLE) {
-      if (currentDistance < sensorThreshold && currentDistance > 0.1) {
+    if (currentState ==
+        IDLE) { // Only check if IDLE to prevent lag during operation? User
+                // wants button fix -> Optimization done in measureDistance
+      if (sensorEnabled && currentDistance < sensorThreshold &&
+          currentDistance > 0.1) {
         sensorTriggerCount++;
         Serial.printf("Sensor Detect: %.1f cm (Count: %d)\n", currentDistance,
                       sensorTriggerCount);
@@ -2008,7 +2043,7 @@ void loop() {
   }
 
   // --- LED Auto Control ---
-  static State lastLedState = (State)-1;
+  static int lastLedState = -1;
   static bool lastLedManualMode = false;
   static uint32_t lastLedManualColor = 0;
 
@@ -2022,15 +2057,53 @@ void loop() {
   if (ledManualMode && lastLedManualColor != currentLedColor)
     needLedUpdate = true;
 
+  // Force update during blink to allow animation
+  if (currentState == FINISHED_BLINK)
+    needLedUpdate = true;
+
   if (needLedUpdate) {
     if (ledManualMode) {
       updateLed(currentLedColor);
       lastLedManualColor = currentLedColor;
     } else {
-      if (currentState == IDLE || currentState == WAIT_CYCLE) {
-        updateLed(pixels.Color(255, 0, 0)); // Red
+      if (currentState == IDLE) {
+        updateLed(0); // OFF
+      } else if (currentState == FINISHED_BLINK) {
+        unsigned long elapsed = millis() - stateStartTime;
+        // Blink Logic: 0-700 ON, 700-1400 OFF, 1400-2100 ON, 2100-2800 OFF
+        bool on = false;
+        if (elapsed < 700)
+          on = true;
+        else if (elapsed >= 1400 && elapsed < 2100)
+          on = true;
+
+        if (on)
+          updateLed(pixels.Color(0, 255, 0)); // Green
+        else
+          updateLed(0); // OFF
       } else {
-        updateLed(pixels.Color(0, 255, 0)); // Green
+        // Progressive Green Bar
+        // Calculate total duration
+        float cycleDur = (reachTimeSec * 2) + holdTimeSec;
+        float totalDur = (targetCount * cycleDur) + 0.5; // +0.5 margin
+        // Current elapsed in session
+        // We need sessionStartTime from start
+        unsigned long sessionElapsed = millis() - sessionStartTime;
+
+        float progress = (float)sessionElapsed / (totalDur * 1000.0);
+        if (progress > 1.0)
+          progress = 1.0;
+        if (progress < 0.0)
+          progress = 0.0;
+
+        int ledCount = (int)(progress * LED_COUNT);
+        for (int i = 0; i < LED_COUNT; i++) {
+          if (i < ledCount)
+            pixels.setPixelColor(i, pixels.Color(0, 255, 0));
+          else
+            pixels.setPixelColor(i, 0);
+        }
+        pixels.show();
       }
     }
     lastLedState = currentState;
@@ -2090,7 +2163,8 @@ void loop() {
     } else {
       Serial.println("Finished.");
       setAllServosAngle(270);
-      currentState = IDLE;
+      currentState = FINISHED_BLINK;
+      stateStartTime = now; // Reuse for blink timing
 
       // --- 履歴保存 ---
       struct tm timeinfo;
@@ -2117,6 +2191,22 @@ void loop() {
       // ----------------
     }
     yield(); // Watchdog reset
+    break;
+
+  case FINISHED_BLINK:
+    // 0.7s ON, 0.7s OFF, 0.7s ON, 0.7s OFF -> IDLE
+    {
+      unsigned long elapsed = now - stateStartTime;
+      // 0.0-0.7: ON (Handled by LED Logic)
+      // 0.7-1.4: OFF
+      // 1.4-2.1: ON
+      // 2.1-2.8: OFF
+      // 2.8+: Finish
+      if (elapsed > 2800) {
+        currentState = IDLE;
+      }
+    }
+    yield();
     break;
   }
 }
