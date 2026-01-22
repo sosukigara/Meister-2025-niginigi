@@ -586,6 +586,13 @@ input:checked + .slider:before { transform: translateX(22px); }
           <button onclick="setLedColor(0,0,0)" style="background:#eee; color:#333; border:none; padding:8px 12px; border-radius:8px; font-weight:bold;">OFF</button>
         </div>
       </div>
+      <div style="margin-top:12px;">
+        <div class="s-header">
+           <span class="s-label">LED使用数</span>
+           <span class="s-val" id="led-cnt-disp">35</span>
+        </div>
+        <input type="range" id="inp-led-cnt" min="1" max="35" value="35" step="1" oninput="document.getElementById('led-cnt-disp').innerText=this.value; fetch('/api/settings?led_cnt='+this.value)">
+      </div>
     </div>
     
     <!-- 個別サーボ位置補正 -->
@@ -871,9 +878,9 @@ function updTimeDisp() {
   if (isRunning) return; 
   const h = parseFloat(document.getElementById('inp-hold').value) || 0.5;
   const r = parseFloat(document.getElementById('inp-reach').value) || 0.5;
-  // 理論値(WAIT除外) + マージン(0.3s init) + サイクルオーバーヘッド(0.3s)
-  // Backend: (targetCount * (reach*2 + hold + 0.3)) + 0.3
-  const total = (tgtCount * ((r * 2) + h + 0.3)) + 0.3;
+  // 理論値(WAIT除外) + マージン(0.3s init) + サイクルオーバーヘッド(0.4s)
+  // Backend: (targetCount * (reach*2 + hold + 0.4)) + 0.4
+  const total = (tgtCount * ((r * 2) + h + 0.4)) + 0.4;
   document.getElementById('time-display').innerText = fmtTime(Math.ceil(total));
   // sessionTotalDur = total; // 修正
 }
@@ -1417,6 +1424,7 @@ int targetStrength = 50;
 int targetCount = 3;
 int currentCycle = 0;
 int pin13State = 0;
+int activeLedCount = 35;
 
 void setAllServosAngle(int angle) {
   setServoAngleSafe(1, angle);
@@ -1581,6 +1589,16 @@ void handleApiStop() {
 }
 
 void handleApiSettings() {
+  if (server.hasArg("led_cnt")) {
+    int cnt = server.arg("led_cnt").toInt();
+    if (cnt < 1)
+      cnt = 1;
+    if (cnt > 35)
+      cnt = 35;
+    activeLedCount = cnt;
+    preferences.putInt("led_cnt", activeLedCount);
+    Serial.printf("[API] LED Count: %d\n", activeLedCount);
+  }
   if (server.hasArg("hold")) {
     holdTimeSec = server.arg("hold").toFloat();
     preferences.putFloat("hold", holdTimeSec);
@@ -1646,9 +1664,10 @@ void handleApiStatus() {
 
   // Exclude WAIT time (0.3s) to prevent timer remaining at the end
   // PREPARE (0.3s) + REACH + HOLD + REACH + WAIT (0.3s) = Total Cycle
-  // Corrected: Overhead is 0.3s (WAIT) per cycle + 0.3s (PREPARE) initial
-  float cycleDur = (reachTimeSec * 2) + holdTimeSec + 0.3;
-  float totalDur = (targetCount * cycleDur) + 0.3;
+  // Corrected: Overhead is 0.4s (WAIT+Margin) per cycle + 0.4s (PREPARE+Margin)
+  // initial
+  float cycleDur = (reachTimeSec * 2) + holdTimeSec + 0.4;
+  float totalDur = (targetCount * cycleDur) + 0.4;
 
   String json = "{";
   json += "\"state\":\"" + s + "\",";
@@ -1923,6 +1942,7 @@ void setup() {
   holdTimeSec = preferences.getFloat("hold", 0.5);
   reachTimeSec = preferences.getFloat("reach", 0.5);
   pin13State = preferences.getInt("pin13", 0);
+  activeLedCount = preferences.getInt("led_cnt", 35);
   servo1Offset = preferences.getInt("servo1Off", 0);
   servo2Offset = preferences.getInt("servo2Off", 0);
   servo3Offset = preferences.getInt("servo3Off", 0);
@@ -2105,9 +2125,10 @@ void loop() {
         // Progressive Green Bar
         // Calculate total duration
         // Corrected: Include PREPARE(0.3) + WAIT(0.3) overhead
-        // Corrected: Overhead is 0.3s (WAIT) per cycle + 0.3s (PREPARE) initial
-        float cycleDur = (reachTimeSec * 2) + holdTimeSec + 0.3;
-        float totalDur = (targetCount * cycleDur) + 0.3; // +0.3 margin
+        // Corrected: Overhead is 0.4s (WAIT+Margin) per cycle + 0.4s
+        // (PREPARE+Margin) initial
+        float cycleDur = (reachTimeSec * 2) + holdTimeSec + 0.4;
+        float totalDur = (targetCount * cycleDur) + 0.4; // +0.4 margin
         // Current elapsed in session
         // We need sessionStartTime from start
         unsigned long sessionElapsed = millis() - sessionStartTime;
@@ -2118,12 +2139,17 @@ void loop() {
         if (progress < 0.0)
           progress = 0.0;
 
-        int ledCount = (int)(progress * LED_COUNT);
+        int ledCount = (int)(progress * activeLedCount);
         for (int i = 0; i < LED_COUNT; i++) {
-          if (i < ledCount)
-            pixels.setPixelColor(i, pixels.Color(0, 255, 0));
-          else
-            pixels.setPixelColor(i, 0);
+          // Limit to activeLedCount for total display
+          if (i < activeLedCount) {
+            if (i < ledCount)
+              pixels.setPixelColor(i, pixels.Color(0, 255, 0));
+            else
+              pixels.setPixelColor(i, 0);
+          } else {
+            pixels.setPixelColor(i, 0); // Always OFF above limit
+          }
         }
         pixels.show();
       }
@@ -2172,14 +2198,20 @@ void loop() {
 
   case RELEASING:
     setAllServosAngle(270);
-    if (now - stateStartTime >= 300) {
+    // Latency Fix: Skip wait on the very last cycle to start blinking
+    // immediately
+    if (currentCycle == targetCount - 1) {
       currentState = WAIT_CYCLE;
+    } else {
+      if (now - stateStartTime >= 300) {
+        currentState = WAIT_CYCLE;
+      }
     }
     yield(); // Watchdog reset
     break;
 
   case FINISHED_BLINK:
-    if (now - stateStartTime >= 1800) {
+    if (now - stateStartTime >= 900) {
       currentState = IDLE;
       setAllServosAngle(270); // Ensure Reset
     }
