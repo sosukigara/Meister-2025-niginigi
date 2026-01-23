@@ -422,7 +422,7 @@ input:checked + .slider:before { transform: translateX(22px); }
     <div style="display:flex; align-items:center; gap:8px;">
       <div class="conn-dot" id="conn-dot"></div>
       <h1 style="line-height:1; margin:0;">にぎにぎ</h1>
-      <span style="font-size:0.75rem; color:var(--text-sub); font-family:monospace; padding-top:4px;">v1.60</span>
+      <span style="font-size:0.75rem; color:var(--text-sub); font-family:monospace; padding-top:4px;">v1.61</span>
     </div>
 
     <!-- Sensor Control -->
@@ -514,7 +514,7 @@ input:checked + .slider:before { transform: translateX(22px); }
     <div class="setting-item">
       <span class="s-label">システム情報</span>
       <div style="margin-top:8px; font-size:0.9rem; color:var(--text-sub);">
-        <div>Version: <span style="font-family:monospace;">1.59</span></div>
+        <div>Version: <span style="font-family:monospace;">1.61</span></div>
         <div>Build: <span style="font-family:monospace;">{{BUILD_TIME}}</span></div>
         <div>IP: <span style="font-family:monospace;" id="ip-disp">...</span></div>
       </div>
@@ -878,11 +878,10 @@ function updTimeDisp() {
   if (isRunning) return; 
   const h = parseFloat(document.getElementById('inp-hold').value) || 0.5;
   const r = parseFloat(document.getElementById('inp-reach').value) || 0.5;
-  // 理論値(WAIT除外) + マージン(0.3s init) + サイクルオーバーヘッド(0.4s)
-  // Backend: (targetCount * (reach*2 + hold + 0.4)) + 0.4
-  const total = (tgtCount * ((r * 2) + h + 0.4)) + 0.4;
+  // 理論値(WAIT 0.3s) + PREPARE(0.3s)
+  // Backend: 0.3 + (targetCount * (reach + hold + 0.3))
+  const total = 0.3 + (tgtCount * (r + h + 0.3));
   document.getElementById('time-display').innerText = fmtTime(Math.ceil(total));
-  // sessionTotalDur = total; // 修正
 }
 
 function setCount(n, el) {
@@ -997,8 +996,8 @@ function start() {
 
   const h = parseFloat(document.getElementById('inp-hold').value) || 0.5;
   const r = parseFloat(document.getElementById('inp-reach').value) || 0.5;
-  // 理論値(WAIT除外) + マージン
-  sessionTotalDur = (tgtCount * ((r * 2) + h)) + 0.5;
+  // 理論値に合わせて補正
+  sessionTotalDur = 0.3 + (tgtCount * (r + h + 0.3));
   if(sessionTotalDur < 1) sessionTotalDur = 1;
 
   // プリセット名も送信
@@ -1662,12 +1661,11 @@ void handleApiStatus() {
     break;
   }
 
-  // Exclude WAIT time (0.3s) to prevent timer remaining at the end
-  // PREPARE (0.3s) + REACH + HOLD + REACH + WAIT (0.3s) = Total Cycle
-  // Corrected: Overhead is 0.4s (WAIT+Margin) per cycle + 0.4s (PREPARE+Margin)
-  // initial
-  float cycleDur = (reachTimeSec * 2) + holdTimeSec + 0.4;
-  float totalDur = (targetCount * cycleDur) + 0.4;
+  // Corrected Timing Calculation
+  // PREPARE: 0.3s
+  // Cycle: SQUEEZE(reach) + HOLD(hold) + RELEASE(0.3s fix)
+  float cycleDur = reachTimeSec + holdTimeSec + 0.3;
+  float totalDur = 0.3 + (targetCount * cycleDur);
 
   String json = "{";
   json += "\"state\":\"" + s + "\",";
@@ -2092,8 +2090,8 @@ void loop() {
   if (ledManualMode && lastLedManualColor != currentLedColor)
     needLedUpdate = true;
 
-  // Force update during blink to allow animation
-  if (currentState == FINISHED_BLINK)
+  // Force update during blink or ANY running state to allow animation
+  if (currentState != IDLE && !ledManualMode)
     needLedUpdate = true;
 
   if (needLedUpdate) {
@@ -2124,11 +2122,9 @@ void loop() {
       } else {
         // Progressive Green Bar
         // Calculate total duration
-        // Corrected: Include PREPARE(0.3) + WAIT(0.3) overhead
-        // Corrected: Overhead is 0.4s (WAIT+Margin) per cycle + 0.4s
-        // (PREPARE+Margin) initial
-        float cycleDur = (reachTimeSec * 2) + holdTimeSec + 0.4;
-        float totalDur = (targetCount * cycleDur) + 0.4; // +0.4 margin
+        // Corrected: Include PREPARE(0.3) + Cycle logic
+        float cycleDur = reachTimeSec + holdTimeSec + 0.3;
+        float totalDur = 0.3 + (targetCount * cycleDur);
         // Current elapsed in session
         // We need sessionStartTime from start
         unsigned long sessionElapsed = millis() - sessionStartTime;
