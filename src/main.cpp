@@ -11,6 +11,7 @@
 #include <vector>
 
 // --- LittleFS for serving HTML ---
+#include <ArduinoJson.h>
 #include <LittleFS.h>
 
 WebServer server(80);
@@ -77,6 +78,58 @@ struct HistoryItem {
 };
 std::vector<HistoryItem> historyLog;
 String currentSessionPreset = "Custom";
+
+// --- 履歴の永続化 ---
+void loadHistoryFromFile() {
+  File file = LittleFS.open("/history.json", "r");
+  if (!file) {
+    Serial.println("No history file found, starting fresh");
+    return;
+  }
+
+  JsonDocument doc;
+  DeserializationError error = deserializeJson(doc, file);
+  file.close();
+
+  if (error) {
+    Serial.printf("History JSON parse error: %s\n", error.c_str());
+    return;
+  }
+
+  historyLog.clear();
+  JsonArray arr = doc.as<JsonArray>();
+  for (JsonObject item : arr) {
+    HistoryItem h;
+    h.timeStr = item["time"].as<String>();
+    h.preset = item["preset"].as<String>();
+    h.strength = item["strength"] | 0;
+    h.count = item["count"] | 0;
+    historyLog.push_back(h);
+  }
+  Serial.printf("Loaded %d history items\n", historyLog.size());
+}
+
+void saveHistoryToFile() {
+  JsonDocument doc;
+  JsonArray arr = doc.to<JsonArray>();
+
+  for (const auto &h : historyLog) {
+    JsonObject item = arr.add<JsonObject>();
+    item["time"] = h.timeStr;
+    item["preset"] = h.preset;
+    item["strength"] = h.strength;
+    item["count"] = h.count;
+  }
+
+  File file = LittleFS.open("/history.json", "w");
+  if (!file) {
+    Serial.println("Failed to open history file for writing");
+    return;
+  }
+  serializeJson(doc, file);
+  file.close();
+  Serial.printf("Saved %d history items\n", historyLog.size());
+}
 
 // 状態管理
 // 状態管理
@@ -304,7 +357,6 @@ void handleApiSettings() {
     reachTimeSec = server.arg("reach").toFloat();
     preferences.putFloat("reach", reachTimeSec);
   }
-  // Sync params for sensor auto-start
   if (server.hasArg("str"))
     targetStrength = server.arg("str").toInt();
   if (server.hasArg("cnt"))
@@ -314,14 +366,17 @@ void handleApiSettings() {
     preferences.putFloat("sth", sensorThreshold);
   }
 
-  String json = "{";
-  json += "\"hold\":" + String(holdTimeSec) + ",";
-  json += "\"reach\":" + String(reachTimeSec) + ",";
-  json += "\"pin13\":" + String(pin13State) + ",";
-  json += "\"sensor\":" + String(sensorEnabled) + ",";
-  json += "\"sth\":" + String(sensorThreshold);
-  json += "}";
-  server.send(200, "application/json", json);
+  JsonDocument doc;
+  doc["hold"] = holdTimeSec;
+  doc["reach"] = reachTimeSec;
+  doc["pin13"] = pin13State;
+  doc["sensor"] = sensorEnabled;
+  doc["sth"] = sensorThreshold;
+  doc["build"] = __DATE__ " " __TIME__;
+
+  String output;
+  serializeJson(doc, output);
+  server.send(200, "application/json", output);
 }
 
 void handleApiPin13() {
@@ -334,48 +389,49 @@ void handleApiPin13() {
 }
 
 void handleApiStatus() {
-  String s;
+  const char *stateStr;
   switch (currentState) {
   case IDLE:
-    s = "IDLE";
+    stateStr = "IDLE";
     break;
   case PREPARE_SQUEEZE:
-    s = "PREPARE_SQUEEZE";
+    stateStr = "PREPARE_SQUEEZE";
     break;
   case SQUEEZING:
-    s = "SQUEEZING";
+    stateStr = "SQUEEZING";
     break;
   case HOLDING:
-    s = "HOLDING";
+    stateStr = "HOLDING";
     break;
   case RELEASING:
-    s = "RELEASING";
+    stateStr = "RELEASING";
     break;
   case WAIT_CYCLE:
-    s = "WAIT_CYCLE";
+    stateStr = "WAIT_CYCLE";
     break;
   case FINISHED_BLINK:
-    s = "FINISHED_BLINK";
+    stateStr = "FINISHED_BLINK";
     break;
+  default:
+    stateStr = "UNKNOWN";
   }
 
-  // Corrected Timing Calculation
-  // PREPARE: 0.3s
-  // Cycle: SQUEEZE(reach) + HOLD(hold) + RELEASE(0.3s fix)
   float cycleDur = reachTimeSec + holdTimeSec + 0.3;
   float totalDur = 0.3 + (targetCount * cycleDur);
 
-  String json = "{";
-  json += "\"state\":\"" + s + "\",";
-  json += "\"cycle\":" + String(currentCycle) + ",";
-  json += "\"total\":" + String(targetCount) + ",";
-  json += "\"elap\":" + String(millis() - sessionStartTime) + ",";
-  json += "\"pin13\":" + String(pin13State) + ",";
-  json += "\"dur\":" + String(totalDur) + ",";
-  json += "\"preset\":\"" + currentSessionPreset + "\",";
-  json += "\"str\":" + String(targetStrength);
-  json += "}";
-  server.send(200, "application/json", json);
+  JsonDocument doc;
+  doc["state"] = stateStr;
+  doc["cycle"] = currentCycle;
+  doc["total"] = targetCount;
+  doc["elap"] = millis() - sessionStartTime;
+  doc["pin13"] = pin13State;
+  doc["dur"] = totalDur;
+  doc["preset"] = currentSessionPreset;
+  doc["str"] = targetStrength;
+
+  String output;
+  serializeJson(doc, output);
+  server.send(200, "application/json", output);
 }
 
 void handleApiManual() {
@@ -456,19 +512,20 @@ void handleApiServoIndividual() {
 }
 
 void handleApiHistory() {
-  String json = "[";
-  for (size_t i = 0; i < historyLog.size(); i++) {
-    if (i > 0)
-      json += ",";
-    json += "{";
-    json += "\"time\":\"" + historyLog[i].timeStr + "\",";
-    json += "\"preset\":\"" + historyLog[i].preset + "\",";
-    json += "\"strength\":" + String(historyLog[i].strength) + ",";
-    json += "\"count\":" + String(historyLog[i].count);
-    json += "}";
+  JsonDocument doc;
+  JsonArray arr = doc.to<JsonArray>();
+
+  for (const auto &h : historyLog) {
+    JsonObject item = arr.add<JsonObject>();
+    item["time"] = h.timeStr;
+    item["preset"] = h.preset;
+    item["strength"] = h.strength;
+    item["count"] = h.count;
   }
-  json += "]";
-  server.send(200, "application/json", json);
+
+  String output;
+  serializeJson(doc, output);
+  server.send(200, "application/json", output);
 }
 
 void handleApiServoOffset() {
@@ -631,10 +688,8 @@ void handleRoot() {
     server.send(500, "text/plain", "Failed to open file");
     return;
   }
-  String html = file.readString();
+  server.streamFile(file, "text/html");
   file.close();
-  html.replace("{{BUILD_TIME}}", __DATE__ " " __TIME__);
-  server.send(200, "text/html", html);
 }
 
 void setup() {
@@ -644,6 +699,9 @@ void setup() {
   if (!LittleFS.begin(true)) {
     Serial.println("LittleFS mount failed");
   }
+
+  // Load history from file
+  loadHistoryFromFile();
 
   preferences.begin("job", false);
   holdTimeSec = preferences.getFloat("hold", 0.5);
@@ -936,6 +994,9 @@ void loop() {
       if (historyLog.size() > 20) {
         historyLog.erase(historyLog.begin());
       }
+
+      // Save history to file
+      saveHistoryToFile();
       // ----------------
     } else {
       // Not last cycle - wait 300ms then go to WAIT_CYCLE
