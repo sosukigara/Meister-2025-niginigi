@@ -1245,7 +1245,7 @@
 
           // Ensure Count UI matches current tgtCount (default 3 if backend empty)
           document.querySelectorAll('.chk-btn').forEach(b => {
-            if (parseInt(b.innerText) === tgtCount) b.classList.add('active');
+            if (parseInt(b.innerText.trim()) === parseInt(tgtCount)) b.classList.add('active');
             else b.classList.remove('active');
           });
 

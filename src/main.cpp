@@ -170,7 +170,7 @@ unsigned long sessionStartTime = 0;
 float holdTimeSec = 0.5;
 float reachTimeSec = 0.5;
 
-int targetStrength = 50;
+int targetStrength = 90; // Default to Normal (v2.6+)
 int targetCount = 3;
 int currentCycle = 0;
 int pin13State = 0;
@@ -306,10 +306,10 @@ float measureDistance() {
 
 // API: Start
 void handleApiStart() {
-  if (server.hasArg("strength"))
-    targetStrength = server.arg("strength").toInt();
-  if (server.hasArg("count"))
-    targetCount = server.arg("count").toInt();
+  if (server.hasArg("str"))
+    targetStrength = server.arg("str").toInt();
+  if (server.hasArg("cnt"))
+    targetCount = server.arg("cnt").toInt();
   if (server.hasArg("preset"))
     currentSessionPreset = server.arg("preset");
   else
@@ -319,6 +319,10 @@ void handleApiStart() {
     targetStrength = 100;
   if (targetStrength < 0)
     targetStrength = 0;
+
+  // Persist current selection
+  preferences.putInt("str", targetStrength);
+  preferences.putInt("cnt", targetCount);
 
   Serial.printf("[API] Start: Str=%d%%, Cnt=%d, Preset=%s\n", targetStrength,
                 targetCount, currentSessionPreset.c_str());
@@ -357,10 +361,14 @@ void handleApiSettings() {
     reachTimeSec = server.arg("reach").toFloat();
     preferences.putFloat("reach", reachTimeSec);
   }
-  if (server.hasArg("str"))
+  if (server.hasArg("str")) {
     targetStrength = server.arg("str").toInt();
-  if (server.hasArg("cnt"))
+    preferences.putInt("str", targetStrength);
+  }
+  if (server.hasArg("cnt")) {
     targetCount = server.arg("cnt").toInt();
+    preferences.putInt("cnt", targetCount);
+  }
   if (server.hasArg("sth")) {
     sensorThreshold = server.arg("sth").toFloat();
     preferences.putFloat("sth", sensorThreshold);
@@ -717,6 +725,8 @@ void setup() {
 
   sensorEnabled = preferences.getBool("sensor", false);
   sensorThreshold = preferences.getFloat("sth", 10.0);
+  targetStrength = preferences.getInt("str", 90);
+  targetCount = preferences.getInt("cnt", 3);
 
   minAngle1 = preferences.getInt("minAng1", 0);
   maxAngle1 = preferences.getInt("maxAng1", 270);
