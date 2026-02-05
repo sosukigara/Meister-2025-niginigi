@@ -514,7 +514,7 @@ input:checked + .slider:before { transform: translateX(22px); }
     <div class="setting-item">
       <span class="s-label">システム情報</span>
       <div style="margin-top:8px; font-size:0.9rem; color:var(--text-sub);">
-        <div>Version: <span style="font-family:monospace;">1.61</span></div>
+        <div>Version: <span style="font-family:monospace;">1.62</span></div>
         <div>Build: <span style="font-family:monospace;">{{BUILD_TIME}}</span></div>
         <div>IP: <span style="font-family:monospace;" id="ip-disp">...</span></div>
       </div>
@@ -1555,10 +1555,10 @@ float measureDistance() {
 
 // API: Start
 void handleApiStart() {
-  if (server.hasArg("str"))
-    targetStrength = server.arg("str").toInt();
-  if (server.hasArg("cnt"))
-    targetCount = server.arg("cnt").toInt();
+  if (server.hasArg("strength"))
+    targetStrength = server.arg("strength").toInt();
+  if (server.hasArg("count"))
+    targetCount = server.arg("count").toInt();
   if (server.hasArg("preset"))
     currentSessionPreset = server.arg("preset");
   else
@@ -2068,10 +2068,6 @@ void loop() {
       attachAllServos();
       setAllServosAngle(270);
     }
-    if (currentState == PREPARE_SQUEEZE) {
-      attachAllServos();
-      setAllServosAngle(270);
-    }
     lastState = currentState;
   }
 
@@ -2103,30 +2099,45 @@ void loop() {
         updateLed(0); // OFF
       } else if (currentState == FINISHED_BLINK) {
         unsigned long elapsed = millis() - stateStartTime;
-        // Blink Logic: Faster! 0.3s interval, 3 times
-        // 0-300 ON, 300-600 OFF
-        // 600-900 ON, 900-1200 OFF
-        // 1200-1500 ON, 1500-1800 OFF
+        // Blink Logic: Faster! 200ms interval, 3 times
+        // 0-200 ON, 200-400 OFF
+        // 400-600 ON, 600-800 OFF
+        // 800-1000 ON, >1000 OFF (Exit)
         bool on = false;
-        if (elapsed < 300)
+        if (elapsed < 200)
           on = true;
-        else if (elapsed >= 600 && elapsed < 900)
+        else if (elapsed >= 400 && elapsed < 600)
           on = true;
-        else if (elapsed >= 1200 && elapsed < 1500)
+        else if (elapsed >= 800 && elapsed < 1000)
           on = true;
 
         if (on)
           updateLed(pixels.Color(0, 255, 0)); // Green
         else
           updateLed(0); // OFF
+      } else if (currentState == WAIT_CYCLE) {
+        // WAIT_CYCLE: Turn off LEDs immediately to prepare for blink
+        // This prevents the "all green" state between completion and blink
+        updateLed(0); // OFF
+      } else if (currentState == RELEASING && currentCycle >= targetCount) {
+        // Last cycle RELEASING: Force 100% display
+        // Note: currentCycle is incremented in RELEASING before this check
+        for (int i = 0; i < LED_COUNT; i++) {
+          if (i < activeLedCount) {
+            pixels.setPixelColor(i, pixels.Color(0, 255, 0)); // All green
+          } else {
+            pixels.setPixelColor(i, 0);
+          }
+        }
+        pixels.show();
       } else {
         // Progressive Green Bar
-        // Calculate total duration
-        // Corrected: Include PREPARE(0.3) + Cycle logic
+        // Calculate total duration = PREPARE(0.3s) + N * (Reach + Hold +
+        // Release)
         float cycleDur = reachTimeSec + holdTimeSec + 0.3;
-        float totalDur = 0.3 + (targetCount * cycleDur);
+        float totalDur = 0.3 + ((float)targetCount * cycleDur);
+
         // Current elapsed in session
-        // We need sessionStartTime from start
         unsigned long sessionElapsed = millis() - sessionStartTime;
 
         float progress = (float)sessionElapsed / (totalDur * 1000.0);
@@ -2137,14 +2148,13 @@ void loop() {
 
         int ledCount = (int)(progress * activeLedCount);
         for (int i = 0; i < LED_COUNT; i++) {
-          // Limit to activeLedCount for total display
           if (i < activeLedCount) {
             if (i < ledCount)
               pixels.setPixelColor(i, pixels.Color(0, 255, 0));
             else
               pixels.setPixelColor(i, 0);
           } else {
-            pixels.setPixelColor(i, 0); // Always OFF above limit
+            pixels.setPixelColor(i, 0);
           }
         }
         pixels.show();
@@ -2156,8 +2166,7 @@ void loop() {
 
   switch (currentState) {
   case IDLE:
-    // Auto Detach Removed as per user request
-    yield(); // Watchdog reset
+    yield();
     break;
 
   case PREPARE_SQUEEZE:
@@ -2165,7 +2174,7 @@ void loop() {
     if (now - stateStartTime > 300) {
       currentState = SQUEEZING;
     }
-    yield(); // Watchdog reset
+    yield();
     break;
 
   case SQUEEZING: {
@@ -2182,32 +2191,54 @@ void loop() {
       int currentAngle = startAngle + (targetAngle - startAngle) * progress;
       setAllServosAngle(currentAngle);
     }
-    yield(); // Watchdog reset
+    yield();
   } break;
 
   case HOLDING:
     if (now - stateStartTime >= (holdTimeSec * 1000)) {
       currentState = RELEASING;
+      currentCycle++; // カウントアップは状態遷移時のみ1回だけ！
     }
-    yield(); // Watchdog reset
+    yield();
     break;
 
   case RELEASING:
     setAllServosAngle(270);
-    // Latency Fix: Skip wait on the very last cycle to start blinking
-    // immediately
-    if (currentCycle == targetCount - 1) {
-      currentState = WAIT_CYCLE;
+    // currentCycle++ は削除 (HOLDINGで1回だけ実行済み)
+
+    // Check if this was the last cycle
+    if (currentCycle >= targetCount) {
+      // Last cycle complete - transition DIRECTLY to blink (skip WAIT_CYCLE)
+      Serial.println("Finished.");
+      currentState = FINISHED_BLINK;
+
+      // --- 履歴保存 ---
+      // getLocalTimeはネットがないと数秒フリーズするので削除
+      String timeStr = String(millis() / 1000) + "秒前";
+
+      HistoryItem newItem;
+      newItem.timeStr = timeStr;
+      newItem.preset = currentSessionPreset;
+      newItem.strength = targetStrength;
+      newItem.count = targetCount;
+
+      historyLog.push_back(newItem);
+
+      if (historyLog.size() > 20) {
+        historyLog.erase(historyLog.begin());
+      }
+      // ----------------
     } else {
+      // Not last cycle - wait 300ms then go to WAIT_CYCLE
       if (now - stateStartTime >= 300) {
         currentState = WAIT_CYCLE;
       }
     }
-    yield(); // Watchdog reset
+    yield();
     break;
 
   case FINISHED_BLINK:
-    if (now - stateStartTime >= 900) {
+    if (now - stateStartTime >= 1000) {
       currentState = IDLE;
       setAllServosAngle(270); // Ensure Reset
     }
@@ -2215,40 +2246,9 @@ void loop() {
     break;
 
   case WAIT_CYCLE:
-    currentCycle++;
-    if (currentCycle < targetCount) {
-      currentState = SQUEEZING;
-    } else {
-      Serial.println("Finished.");
-      setAllServosAngle(270);
-      currentState = FINISHED_BLINK;
-      stateStartTime = now; // Reuse for blink timing
-
-      // --- 履歴保存 ---
-      struct tm timeinfo;
-      if (!getLocalTime(&timeinfo)) {
-        Serial.println("Failed to obtain time");
-      } else {
-        char timeStringBuff[50];
-        strftime(timeStringBuff, sizeof(timeStringBuff), "%Y/%m/%d %H:%M",
-                 &timeinfo);
-
-        HistoryItem newItem;
-        newItem.timeStr = String(timeStringBuff);
-        newItem.preset = currentSessionPreset;
-        newItem.strength = targetStrength;
-        newItem.count = targetCount;
-
-        historyLog.push_back(newItem);
-
-        // 最大保存件数 (20件)
-        if (historyLog.size() > 20) {
-          historyLog.erase(historyLog.begin());
-        }
-      }
-      // ----------------
-    }
-    yield(); // Watchdog reset
+    // Intermediate cycle - just transition to next SQUEEZING
+    currentState = SQUEEZING;
+    yield();
     break;
   }
 }
