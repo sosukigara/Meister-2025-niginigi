@@ -1335,9 +1335,17 @@
     }
 
     function setCount(n, el) {
+      if (debounceTimer) clearTimeout(debounceTimer); // Cancel pending preset save
       tgtCount = n;
       document.querySelectorAll('.chk-btn').forEach(b => b.classList.remove('active'));
       el.classList.add('active');
+
+      // Manual Override: Clear preset
+      document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+      currentPresetName = "Custom";
+
+      fetch('/api/settings?cnt=' + n).catch(() => { });
+
       if (!isRunning) updTimeDisp();
     }
 
@@ -1350,15 +1358,15 @@
       let count = 3;
 
       if (mode === 'soft') {
-        s.value = 30;
+        s.value = 80;
         count = 2;
       }
       if (mode === 'normal') {
-        s.value = 50;
+        s.value = 90;
         count = 3;
       }
       if (mode === 'kosen') {
-        s.value = 90;
+        s.value = 95;
         count = 5;
       }
 
