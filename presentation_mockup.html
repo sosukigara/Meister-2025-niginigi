@@ -748,9 +748,119 @@
     </div> <!-- End #app-screen -->
   </div> <!-- End .phone-frame -->
 
-  <button class="capture-btn" onclick="saveImage()">スマホ枠を画像として保存</button>
+  <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center;">
+    <button class="capture-btn" onclick="saveImage()">スマホ枠を画像として保存</button>
+    <button class="capture-btn" onclick="syncFromIndex()" style="background:#2ea043;">🔄 index.htmlから同期</button>
+  </div>
 
   <script>
+    // index.htmlからスタイルとコンテンツを同期する関数
+    async function syncFromIndex() {
+      try {
+        const response = await fetch('./data/index.html');
+        if (!response.ok) throw new Error('読み込みエラー: ' + response.status);
+        const html = await response.text();
+        
+        // HTMLをパース
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        
+        // index.htmlからスタイルを抽出
+        const indexStyle = doc.querySelector('style');
+        // index.htmlからメインビュー等のコンテンツを抽出
+        const indexViewMain = doc.getElementById('view-main');
+        const indexViewSettings = doc.getElementById('view-settings');
+        const indexViewHistory = doc.getElementById('view-history');
+        const indexModal = doc.querySelector('.completion-modal');
+        
+        // モックアップのアプリ画面内に反映
+        const appScreen = document.getElementById('app-screen');
+        
+        // ビューコンテナを更新
+        if (indexViewMain) {
+          const localViewMain = document.getElementById('view-main');
+          if (localViewMain) {
+            localViewMain.innerHTML = indexViewMain.innerHTML;
+            // view-containerクラスを維持
+            localViewMain.className = 'view-container';
+          }
+        }
+        if (indexViewSettings) {
+          const localViewSettings = document.getElementById('view-settings');
+          if (localViewSettings) {
+            localViewSettings.innerHTML = indexViewSettings.innerHTML;
+            localViewSettings.className = 'view-container';
+            localViewSettings.style.display = 'none';
+          }
+        }
+        if (indexViewHistory) {
+          const localViewHistory = document.getElementById('view-history');
+          if (localViewHistory) {
+            localViewHistory.innerHTML = indexViewHistory.innerHTML;
+            localViewHistory.className = 'view-container';
+            localViewHistory.style.display = 'none';
+          }
+        }
+        if (indexModal) {
+          const localModal = document.getElementById('completion-modal');
+          if (localModal) {
+            localModal.innerHTML = indexModal.innerHTML;
+          }
+        }
+        
+        // イベントハンドラを再設定
+        rebindEvents();
+        
+        // 設定を再読み込み
+        fetchSettings();
+        
+        alert('✅ index.htmlからの同期完了！');
+      } catch (error) {
+        alert('❌ 同期エラー: ' + error.message + '\n\nヒント: ローカルサーバー経由でアクセスしてください（CORSエラーの可能性）');
+        console.error(error);
+      }
+    }
+    
+    // イベントハンドラを再バインドする関数
+    function rebindEvents() {
+      // プリセットボタン
+      document.querySelectorAll('.preset-btn').forEach(btn => {
+        const name = btn.getAttribute('data-name');
+        let mode = 'normal';
+        if (name === 'やわらか') mode = 'soft';
+        if (name === '高専生用') mode = 'kosen';
+        btn.onclick = () => setPreset(mode, btn);
+      });
+      
+      // 回数ボタン
+      document.querySelectorAll('.chk-btn').forEach((btn, i) => {
+        btn.onclick = () => setCount(i + 1, btn);
+      });
+      
+      // スライダー
+      const strSlider = document.getElementById('inp-str');
+      if (strSlider) {
+        strSlider.oninput = () => updVal('str-disp', strSlider.value, '%');
+      }
+      
+      // 履歴・設定ボタン
+      const btnHistory = document.querySelector('[onclick="showHistory()"]');
+      if (btnHistory) btnHistory.onclick = showHistory;
+      const btnSettings = document.querySelector('[onclick="showSettings()"]');
+      if (btnSettings) btnSettings.onclick = showSettings;
+      
+      // アクションボタン
+      const btnStart = document.querySelector('.btn-start');
+      if (btnStart) btnStart.onclick = start;
+      const btnStop = document.querySelector('.btn-stop');
+      if (btnStop) btnStop.onclick = stop;
+      
+      // 戻るボタン
+      document.querySelectorAll('[onclick="showMain()"]').forEach(btn => {
+        btn.onclick = showMain;
+      });
+    }
+
     const appScreen = document.getElementById('app-screen');
     let tgtCount = 3;
     let currentPresetName = "ふつう";
