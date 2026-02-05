@@ -526,7 +526,7 @@
         width: min(340px, 90vw);
         /* Prevent overflow */
         box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
-        animation: scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+
     }
 
     .completion-title {
@@ -591,17 +591,7 @@
 
 
 
-    @keyframes scaleIn {
-        from {
-            transform: scale(0.9);
-            opacity: 1;
-        }
 
-        to {
-            transform: scale(1);
-            opacity: 1;
-        }
-    }
 
     /* Custom Modal & Toast */
     .modal-overlay {

@@ -25,7 +25,7 @@ const int PIN_SERVO2 = 26;
 const int PIN_SERVO3 = 27;
 
 // --- WS2812B LED設定 ---
-#define LED_COUNT 35
+#define LED_COUNT 29
 #define LED_PIN 13
 Adafruit_NeoPixel pixels(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 bool ledManualMode = false;   // true=ユーザー手動操作中, false=ステート連動
