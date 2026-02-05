@@ -770,6 +770,7 @@ void setup() {
   dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
 
   server.on("/", handleRoot);
+  server.serveStatic("/", LittleFS, "/");
   server.on("/api/status", handleApiStatus);
   server.on("/api/start", handleApiStart);
   server.on("/api/stop", handleApiStop);
