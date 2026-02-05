@@ -1158,6 +1158,11 @@
     // ========================================
     const MOCKUP_MODE = true;
     
+    // モック用の状態管理
+    let mockCycle = 0;
+    let mockState = 'IDLE';
+    let mockAnimationTimer = null;
+    
     // 元のfetchを保存し、モック用にオーバーライド
     const originalFetch = window.fetch;
     window.fetch = function(url, options) {
@@ -1176,15 +1181,69 @@
             sth: 30,
             led_cnt: 12,
             build: 'MOCKUP',
-            status: 'IDLE',
+            state: mockState,
+            status: mockState,
+            cycle: mockCycle,
+            total: tgtCount || 3,
+            dur: sessionTotalDur || 5,
+            elap: 0,
             distance: 25.0,
-            offsets: [0, 0, 0]
+            offsets: [0, 0, 0],
+            offset: 0
           }),
           text: () => Promise.resolve('OK')
         });
       }
       return originalFetch.apply(this, arguments);
     };
+    
+    // モック用のアニメーション処理
+    function mockStartAnimation() {
+      if (!MOCKUP_MODE) return;
+      
+      mockCycle = 0;
+      mockState = 'SQUEEZING';
+      hasSessionFinished = false;
+      
+      const h = parseFloat(document.getElementById('inp-hold').value) || 0.5;
+      const r = parseFloat(document.getElementById('inp-reach').value) || 0.5;
+      const cycleDuration = (r + h + 0.5) * 1000; // 1サイクルあたりのミリ秒
+      
+      // サイクルアニメーション
+      function runCycle() {
+        if (!isRunning || isManualStop) {
+          finishSession();
+          return;
+        }
+        
+        mockCycle++;
+        if (mockCycle <= tgtCount) {
+          // 状態表示を更新
+          mockState = 'SQUEEZING';
+          document.getElementById('status-badge').innerText = `動作中 (${mockCycle}/${tgtCount})`;
+          
+          if (mockCycle < tgtCount) {
+            mockAnimationTimer = setTimeout(runCycle, cycleDuration);
+          }
+        }
+      }
+      
+      // 準備フェーズ後に開始
+      setTimeout(() => {
+        if (isRunning && !isManualStop) {
+          runCycle();
+        }
+      }, 300);
+    }
+    
+    function mockStopAnimation() {
+      if (mockAnimationTimer) {
+        clearTimeout(mockAnimationTimer);
+        mockAnimationTimer = null;
+      }
+      mockState = 'IDLE';
+      mockCycle = 0;
+    }
     
     // --- Custom Modal Logic ---
     let promptResolve = null;
@@ -1502,11 +1561,23 @@
       fetch(`/api/start?str=${s}&cnt=${tgtCount}&preset=${encodeURIComponent(runPreset)}`)
         .then(() => setTimeout(() => isStarting = false, 5000)) // タイムアウト延長
         .catch(() => { isStarting = false; });
+      
+      // モックモード: クライアント側でアニメーション開始
+      if (MOCKUP_MODE) {
+        isStarting = false;
+        mockStartAnimation();
+      }
     }
 
     function stop() {
       isManualStop = true;
       fetch('/api/stop').catch(() => { });
+      
+      // モックモード: アニメーション停止
+      if (MOCKUP_MODE) {
+        mockStopAnimation();
+        finishSession();
+      }
     }
 
     function setOnline(isOnline) {
@@ -1542,6 +1613,12 @@
 
     // --- SYNC WITH SERVER (Adaptive Polling) ---
     function syncStatus() {
+      // モックモードではサーバー同期をスキップ
+      if (MOCKUP_MODE) {
+        setOnline(true);
+        return; // ポーリング停止
+      }
+      
       fetch('/api/status')
         .then(r => r.json())
         .then(d => {
@@ -1612,6 +1689,11 @@
       document.getElementById('status-badge').innerText = "待機中";
       document.getElementById('yt-fill').style.width = '0%';
       updTimeDisp();
+      
+      // モックモード: 状態リセット
+      if (MOCKUP_MODE) {
+        mockStopAnimation();
+      }
 
       if (hasSessionFinished) return; // Prevent double modal
       hasSessionFinished = true;
