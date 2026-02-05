@@ -770,12 +770,11 @@ void setup() {
   dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
 
   server.on("/", handleRoot);
-  server.serveStatic("/", LittleFS, "/");
   server.on("/api/status", handleApiStatus);
   server.on("/api/start", handleApiStart);
   server.on("/api/stop", handleApiStop);
   server.on("/api/settings", handleApiSettings);
-  // server.on("/api/pin13", handleApiPin13);
+  server.on("/api/pin13", handleApiPin13);
   server.on("/api/manual", handleApiManual);
   server.on("/api/manual_angle", handleApiManualAngle);
   server.on("/api/servo_all", handleApiServoAll);
@@ -784,13 +783,32 @@ void setup() {
   server.on("/api/servo_offset", handleApiServoOffset);
   server.on("/api/servo_limit", handleApiServoLimit);
   server.on("/api/sensor_mode", handleApiSensorMode);
-
   server.on("/api/distance", handleApiDistance);
   server.on("/api/led", handleApiLed);
   server.on("/api/led_mode", handleApiLedMode);
 
-  // Captive Portal Redirect
-  server.onNotFound([]() { handleRoot(); });
+  // Captive Portal & Static Files handled here for better reliability with
+  // LittleFS
+  server.onNotFound([]() {
+    String uri = server.uri();
+    if (LittleFS.exists(uri)) {
+      File file = LittleFS.open(uri, "r");
+      String contentType = "text/plain";
+      if (uri.endsWith(".css"))
+        contentType = "text/css";
+      else if (uri.endsWith(".js"))
+        contentType = "application/javascript";
+      else if (uri.endsWith(".html"))
+        contentType = "text/html";
+      else if (uri.endsWith(".ico"))
+        contentType = "image/x-icon";
+
+      server.streamFile(file, contentType);
+      file.close();
+    } else {
+      handleRoot();
+    }
+  });
 
   server.begin();
   Serial.println("Ready.");

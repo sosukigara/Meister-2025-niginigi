@@ -1,3 +1,4 @@
+console.log("[Onigiri] script.js loaded and initializing...");
 // --- Custom Modal Logic ---
 let promptResolve = null;
 function showPrompt(msg, defaultVal = "") {
