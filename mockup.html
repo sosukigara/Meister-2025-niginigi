@@ -32,93 +32,79 @@
 
     body {
       margin: 0;
-      padding: 20px;
+      padding: 40px;
       min-height: 100vh;
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
-      background-color: #e0e0e0;
-      background-image: radial-gradient(#ccc 1px, transparent 1px);
+      background-color: #1a1a2e;
+      background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
       background-size: 20px 20px;
-      font-family: 'Inter', 'Noto Sans JP', sans-serif;
-      gap: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
-    /* スマホの枠 */
-    .phone-frame {
+    /* iPhone 14 Pro Max Frame */
+    .iphone-frame {
       position: relative;
-      width: 375px;
-      height: 812px;
-      background: #000;
-      border-radius: 50px;
-      box-shadow:
-        0 0 0 2px #333,
-        0 20px 50px rgba(0, 0, 0, 0.5);
-      border: 12px solid #1c1c1e;
-      overflow: visible; /* ボタンを表示するためvisibleに */
-      max-width: 85vw;
-      max-height: 75vh;
-      aspect-ratio: 9 / 19.5;
-      flex-shrink: 0;
-    }
-
-    /* 電源ボタン */
-    .power-button {
-      position: absolute;
-      right: -16px;
-      top: 25%;
-      width: 5px;
-      height: 80px;
-      background: linear-gradient(90deg, #1a1a1a, #3a3a3a);
-      border-radius: 0 3px 3px 0;
-      box-shadow: 2px 0 4px rgba(0,0,0,0.3);
-    }
-
-    /* 音量ボタン */
-    .volume-button {
-      position: absolute;
-      left: -16px;
-      width: 5px;
-      background: linear-gradient(270deg, #1a1a1a, #3a3a3a);
-      border-radius: 3px 0 0 3px;
-      box-shadow: -2px 0 4px rgba(0,0,0,0.3);
-    }
-    .volume-up {
-      top: 20%;
-      height: 45px;
-    }
-    .volume-down {
-      top: calc(20% + 55px);
-      height: 45px;
-    }
-    .silent-switch {
-      top: 12%;
-      height: 25px;
-    }
-
-    /* ノッチ */
-    .notch {
-      position: absolute;
-      top: 0;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 40%;
-      height: 28px;
+      width: 430px;
+      height: 932px;
       background: #1c1c1e;
-      border-bottom-left-radius: 16px;
-      border-bottom-right-radius: 16px;
-      z-index: 9999;
+      border-radius: 55px;
+      padding: 12px;
+      box-shadow:
+        0 0 0 3px #0a0a0a,
+        0 0 0 6px #2a2a2a,
+        0 50px 100px rgba(0, 0, 0, 0.5);
+      max-height: 90vh;
+      max-width: 95vw;
     }
 
-    /* アプリ画面コンテナ */
-    .app-container {
+    /* 電源ボタン (右) */
+    .power-btn {
+      position: absolute;
+      right: -3px;
+      top: 180px;
+      width: 4px;
+      height: 100px;
+      background: linear-gradient(90deg, #2a2a2a, #1a1a1a);
+      border-radius: 0 2px 2px 0;
+    }
+
+    /* 音量ボタン (左) */
+    .volume-btn {
+      position: absolute;
+      left: -3px;
+      width: 4px;
+      background: linear-gradient(270deg, #2a2a2a, #1a1a1a);
+      border-radius: 2px 0 0 2px;
+    }
+    .vol-up { top: 150px; height: 60px; }
+    .vol-down { top: 230px; height: 60px; }
+    .silent-switch { top: 100px; height: 35px; }
+
+
+    /* 画面エリア */
+    .screen {
       width: 100%;
       height: 100%;
       background: var(--bg);
-      border-radius: 38px;
-      overflow: hidden; /* スクロールバー非表示 */
+      border-radius: 45px;
+      overflow: hidden;
       position: relative;
+    }
+
+    /* アプリコンテンツ */
+    .app-content {
+      width: 100%;
+      height: 100%;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* スクロールバー非表示 */
+    .app-content::-webkit-scrollbar {
+      display: none;
     }
 
     /* Connection Lost State - DISABLED FOR MOCKUP
@@ -145,13 +131,13 @@
 
     /* Header */
     .header {
-      margin-bottom: 6px;
+      margin-bottom: 12px;
       padding-top: 0;
       display: flex;
       align-items: center;
-      gap: 6px;
-      flex-wrap: nowrap;
-      flex-shrink: 0;
+      /* 縦位置揃え */
+      gap: 10px;
+      flex-wrap: wrap;
     }
 
     .header h1 {
@@ -203,25 +189,26 @@
     #view-history {
       display: flex;
       flex-direction: column;
-      height: 100%;
+      min-height: 100%;
       width: 100%;
-      padding-top: 40px; /* ノッチ分のスペース */
-      padding-bottom: 12px;
-      padding-left: 12px;
-      padding-right: 12px;
+      padding-top: 20px;
+      padding-bottom: 20px;
+      padding-left: 20px;
+      padding-right: 20px;
       box-sizing: border-box;
-      overflow: hidden;
     }
 
     /* Cards */
     .card {
       background: var(--card-bg);
       border-radius: var(--radius);
-      padding: 10px;
-      margin-bottom: 8px;
+      padding: clamp(12px, 2vh, 20px);
+      margin-bottom: 2vh;
+      box-shadow: var(--shadow);
       box-shadow: var(--shadow);
       overflow: hidden;
-      flex-shrink: 1;
+      flex-shrink: 0;
+      /* Prevent shrinking */
     }
 
     /* Monitor Card */
@@ -229,11 +216,14 @@
       display: flex;
       flex-direction: column;
       justify-content: center;
+      /* 垂直方向の中央揃えを追加 */
       align-items: center;
-      min-height: 120px;
-      flex-grow: 1;
+      /* 水平方向の中央揃えを追加 */
+      min-height: 200px;
+      /* 必要なら最低限の高さを指定 */
       position: relative;
-      padding: 10px 0;
+      padding: 20px 0;
+      /* 上下均等なパディングにする */
     }
 
     .monitor-row {
@@ -492,19 +482,22 @@
     /* Bottom Bar */
     .bottom-bar {
       margin-top: auto;
-      margin-bottom: 8px;
+      /* Push to bottom */
+      margin-bottom: 24px;
+      /* Increased bottom spacing */
       display: flex;
-      gap: 8px;
+      gap: 12px;
       filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.1));
       flex-shrink: 0;
+      /* Keep size */
     }
 
     .action-btn {
       flex: 1;
-      height: 50px;
-      border-radius: 25px;
+      height: 68px;
+      border-radius: 34px;
       border: none;
-      font-size: 1rem;
+      font-size: 1.2rem;
       font-weight: 800;
       display: flex;
       align-items: center;
@@ -863,19 +856,18 @@
 
 <body>
 
-  <!-- スマホ枠 -->
-  <div class="phone-frame">
+  <!-- iPhone 14 Pro Max Frame -->
+  <div class="iphone-frame">
     <!-- 物理ボタン -->
-    <div class="power-button"></div>
-    <div class="volume-button silent-switch"></div>
-    <div class="volume-button volume-up"></div>
-    <div class="volume-button volume-down"></div>
+    <div class="power-btn"></div>
+    <div class="volume-btn silent-switch"></div>
+    <div class="volume-btn vol-up"></div>
+    <div class="volume-btn vol-down"></div>
     
-    <!-- ノッチ -->
-    <div class="notch"></div>
-    
-    <!-- アプリ画面 -->
-    <div class="app-container">
+    <!-- Screen -->
+    <div class="screen">
+      <!-- App Content -->
+      <div class="app-content">
 
   <!-- VIEW: MAIN -->
   <div id="view-main">
@@ -1974,8 +1966,9 @@
 
 
   </script>
-    </div> <!-- End .app-container -->
-  </div> <!-- End .phone-frame -->
+      </div> <!-- End .app-content -->
+    </div> <!-- End .screen -->
+  </div> <!-- End .iphone-frame -->
 </body>
 
 </html>
