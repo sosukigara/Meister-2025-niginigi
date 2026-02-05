@@ -31,16 +31,93 @@
     }
 
     body {
-      background: var(--bg);
-      color: var(--text-main);
-      font-family: sans-serif;
       margin: 0;
-      padding: 0;
+      padding: 20px;
       min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background-color: #e0e0e0;
+      background-image: radial-gradient(#ccc 1px, transparent 1px);
+      background-size: 20px 20px;
+      font-family: 'Inter', 'Noto Sans JP', sans-serif;
+      gap: 20px;
+    }
+
+    /* スマホの枠 */
+    .phone-frame {
+      position: relative;
+      width: 375px;
+      height: 812px;
+      background: #000;
+      border-radius: 50px;
+      box-shadow:
+        0 0 0 2px #333,
+        0 20px 50px rgba(0, 0, 0, 0.5);
+      border: 12px solid #1c1c1e;
+      overflow: hidden;
+      max-width: 90vw;
+      max-height: 80vh;
+      aspect-ratio: 9 / 19.5;
+      flex-shrink: 0;
+    }
+
+    /* 電源ボタン */
+    .power-button {
+      position: absolute;
+      right: -14px;
+      top: 120px;
+      width: 4px;
+      height: 80px;
+      background: #2a2a2a;
+      border-radius: 0 2px 2px 0;
+    }
+
+    /* 音量ボタン */
+    .volume-button {
+      position: absolute;
+      left: -14px;
+      width: 4px;
+      background: #2a2a2a;
+      border-radius: 2px 0 0 2px;
+    }
+    .volume-up {
+      top: 100px;
+      height: 50px;
+    }
+    .volume-down {
+      top: 160px;
+      height: 50px;
+    }
+    .silent-switch {
+      top: 60px;
+      height: 25px;
+    }
+
+    /* ノッチ */
+    .notch {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 150px;
+      height: 30px;
+      background: #1c1c1e;
+      border-bottom-left-radius: 16px;
+      border-bottom-right-radius: 16px;
+      z-index: 9999;
+    }
+
+    /* アプリ画面コンテナ */
+    .app-container {
       width: 100%;
-      /* 100vw causes horizontal scroll with scrollbar */
-      overflow-y: scroll;
-      /* Force scrollbar */
+      height: 100%;
+      background: var(--bg);
+      border-radius: 38px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      position: relative;
     }
 
     /* Connection Lost State - DISABLED FOR MOCKUP
@@ -125,13 +202,12 @@
     #view-history {
       display: flex;
       flex-direction: column;
-      min-height: 100vh;
+      min-height: 100%;
       width: 100%;
-      /* Ensure it fits in body */
-      padding-top: max(20px, env(safe-area-inset-top));
-      padding-bottom: max(20px, env(safe-area-inset-bottom));
-      padding-left: max(20px, env(safe-area-inset-left));
-      padding-right: max(20px, env(safe-area-inset-right));
+      padding-top: 50px; /* ノッチ分のスペース */
+      padding-bottom: 20px;
+      padding-left: 16px;
+      padding-right: 16px;
       box-sizing: border-box;
     }
 
@@ -792,6 +868,20 @@
 </head>
 
 <body>
+
+  <!-- スマホ枠 -->
+  <div class="phone-frame">
+    <!-- 物理ボタン -->
+    <div class="power-button"></div>
+    <div class="volume-button silent-switch"></div>
+    <div class="volume-button volume-up"></div>
+    <div class="volume-button volume-down"></div>
+    
+    <!-- ノッチ -->
+    <div class="notch"></div>
+    
+    <!-- アプリ画面 -->
+    <div class="app-container">
 
   <!-- VIEW: MAIN -->
   <div id="view-main">
@@ -1890,6 +1980,8 @@
 
 
   </script>
+    </div> <!-- End .app-container -->
+  </div> <!-- End .phone-frame -->
 </body>
 
 </html>
