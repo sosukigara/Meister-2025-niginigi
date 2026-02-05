@@ -372,6 +372,9 @@ void handleApiSettings() {
   doc["pin13"] = pin13State;
   doc["sensor"] = sensorEnabled;
   doc["sth"] = sensorThreshold;
+  doc["str"] = targetStrength;
+  doc["cnt"] = targetCount;
+  doc["led_cnt"] = activeLedCount;
   doc["build"] = __DATE__ " " __TIME__;
 
   String output;
@@ -416,7 +419,7 @@ void handleApiStatus() {
     stateStr = "UNKNOWN";
   }
 
-  float cycleDur = reachTimeSec + holdTimeSec + 0.3;
+  float cycleDur = reachTimeSec + holdTimeSec + 0.5;
   float totalDur = 0.3 + (targetCount * cycleDur);
 
   JsonDocument doc;
@@ -973,34 +976,35 @@ void loop() {
     setAllServosAngle(270);
     // currentCycle++ は削除 (HOLDINGで1回だけ実行済み)
 
-    // Check if this was the last cycle
-    if (currentCycle >= targetCount) {
-      // Last cycle complete - transition DIRECTLY to blink (skip WAIT_CYCLE)
-      Serial.println("Finished.");
-      currentState = FINISHED_BLINK;
+    // Wait 500ms for physical servo return (180deg ~ 0.48s per datasheet)
+    if (now - stateStartTime >= 500) {
+      // Check if this was the last cycle
+      if (currentCycle >= targetCount) {
+        // Last cycle complete - transition to blink
+        Serial.println("Finished.");
+        currentState = FINISHED_BLINK;
 
-      // --- 履歴保存 ---
-      // getLocalTimeはネットがないと数秒フリーズするので削除
-      String timeStr = String(millis() / 1000) + "秒前";
+        // --- 履歴保存 ---
+        // getLocalTimeはネットがないと数秒フリーズするので削除
+        String timeStr = String(millis() / 1000) + "秒前";
 
-      HistoryItem newItem;
-      newItem.timeStr = timeStr;
-      newItem.preset = currentSessionPreset;
-      newItem.strength = targetStrength;
-      newItem.count = targetCount;
+        HistoryItem newItem;
+        newItem.timeStr = timeStr;
+        newItem.preset = currentSessionPreset;
+        newItem.strength = targetStrength;
+        newItem.count = targetCount;
 
-      historyLog.push_back(newItem);
+        historyLog.push_back(newItem);
 
-      if (historyLog.size() > 20) {
-        historyLog.erase(historyLog.begin());
-      }
+        if (historyLog.size() > 20) {
+          historyLog.erase(historyLog.begin());
+        }
 
-      // Save history to file
-      saveHistoryToFile();
-      // ----------------
-    } else {
-      // Not last cycle - wait 300ms then go to WAIT_CYCLE
-      if (now - stateStartTime >= 300) {
+        // Save history to file
+        saveHistoryToFile();
+        // ----------------
+      } else {
+        // Not last cycle - go to WAIT_CYCLE
         currentState = WAIT_CYCLE;
       }
     }
