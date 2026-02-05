@@ -28,8 +28,8 @@
         padding: 0;
         height: 100dvh;
         width: 100vw;
-        overflow: hidden;
-        /* No scroll on body */
+        overflow-y: scroll;
+        /* Force scrollbar */
     }
 
     /* Connection Lost State */
