@@ -56,9 +56,9 @@
         0 0 0 2px #333,
         0 20px 50px rgba(0, 0, 0, 0.5);
       border: 12px solid #1c1c1e;
-      overflow: hidden;
-      max-width: 90vw;
-      max-height: 80vh;
+      overflow: visible; /* ボタンを表示するためvisibleに */
+      max-width: 85vw;
+      max-height: 75vh;
       aspect-ratio: 9 / 19.5;
       flex-shrink: 0;
     }
@@ -66,32 +66,34 @@
     /* 電源ボタン */
     .power-button {
       position: absolute;
-      right: -14px;
-      top: 120px;
-      width: 4px;
+      right: -16px;
+      top: 25%;
+      width: 5px;
       height: 80px;
-      background: #2a2a2a;
-      border-radius: 0 2px 2px 0;
+      background: linear-gradient(90deg, #1a1a1a, #3a3a3a);
+      border-radius: 0 3px 3px 0;
+      box-shadow: 2px 0 4px rgba(0,0,0,0.3);
     }
 
     /* 音量ボタン */
     .volume-button {
       position: absolute;
-      left: -14px;
-      width: 4px;
-      background: #2a2a2a;
-      border-radius: 2px 0 0 2px;
+      left: -16px;
+      width: 5px;
+      background: linear-gradient(270deg, #1a1a1a, #3a3a3a);
+      border-radius: 3px 0 0 3px;
+      box-shadow: -2px 0 4px rgba(0,0,0,0.3);
     }
     .volume-up {
-      top: 100px;
-      height: 50px;
+      top: 20%;
+      height: 45px;
     }
     .volume-down {
-      top: 160px;
-      height: 50px;
+      top: calc(20% + 55px);
+      height: 45px;
     }
     .silent-switch {
-      top: 60px;
+      top: 12%;
       height: 25px;
     }
 
@@ -101,8 +103,8 @@
       top: 0;
       left: 50%;
       transform: translateX(-50%);
-      width: 150px;
-      height: 30px;
+      width: 40%;
+      height: 28px;
       background: #1c1c1e;
       border-bottom-left-radius: 16px;
       border-bottom-right-radius: 16px;
@@ -115,8 +117,7 @@
       height: 100%;
       background: var(--bg);
       border-radius: 38px;
-      overflow-y: auto;
-      overflow-x: hidden;
+      overflow: hidden; /* スクロールバー非表示 */
       position: relative;
     }
 
@@ -144,13 +145,13 @@
 
     /* Header */
     .header {
-      margin-bottom: 12px;
+      margin-bottom: 6px;
       padding-top: 0;
       display: flex;
       align-items: center;
-      /* 縦位置揃え */
-      gap: 10px;
-      flex-wrap: wrap;
+      gap: 6px;
+      flex-wrap: nowrap;
+      flex-shrink: 0;
     }
 
     .header h1 {
@@ -202,26 +203,25 @@
     #view-history {
       display: flex;
       flex-direction: column;
-      min-height: 100%;
+      height: 100%;
       width: 100%;
-      padding-top: 50px; /* ノッチ分のスペース */
-      padding-bottom: 20px;
-      padding-left: 16px;
-      padding-right: 16px;
+      padding-top: 40px; /* ノッチ分のスペース */
+      padding-bottom: 12px;
+      padding-left: 12px;
+      padding-right: 12px;
       box-sizing: border-box;
+      overflow: hidden;
     }
 
     /* Cards */
     .card {
       background: var(--card-bg);
       border-radius: var(--radius);
-      padding: clamp(12px, 2vh, 20px);
-      margin-bottom: 2vh;
-      box-shadow: var(--shadow);
+      padding: 10px;
+      margin-bottom: 8px;
       box-shadow: var(--shadow);
       overflow: hidden;
-      flex-shrink: 0;
-      /* Prevent shrinking */
+      flex-shrink: 1;
     }
 
     /* Monitor Card */
@@ -229,14 +229,11 @@
       display: flex;
       flex-direction: column;
       justify-content: center;
-      /* 垂直方向の中央揃えを追加 */
       align-items: center;
-      /* 水平方向の中央揃えを追加 */
-      min-height: 200px;
-      /* 必要なら最低限の高さを指定 */
+      min-height: 120px;
+      flex-grow: 1;
       position: relative;
-      padding: 20px 0;
-      /* 上下均等なパディングにする */
+      padding: 10px 0;
     }
 
     .monitor-row {
@@ -495,22 +492,19 @@
     /* Bottom Bar */
     .bottom-bar {
       margin-top: auto;
-      /* Push to bottom */
-      margin-bottom: 24px;
-      /* Increased bottom spacing */
+      margin-bottom: 8px;
       display: flex;
-      gap: 12px;
+      gap: 8px;
       filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.1));
       flex-shrink: 0;
-      /* Keep size */
     }
 
     .action-btn {
       flex: 1;
-      height: 68px;
-      border-radius: 34px;
+      height: 50px;
+      border-radius: 25px;
       border: none;
-      font-size: 1.2rem;
+      font-size: 1rem;
       font-weight: 800;
       display: flex;
       align-items: center;
