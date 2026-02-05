@@ -855,8 +855,8 @@
           <span class="s-label">握りの強さ</span>
           <span class="s-val" id="str-disp">50%</span>
         </div>
-        <input type="range" id="inp-str" min="0" max="100" value="50" oninput="updVal('str-disp', this.value, '%')"
-          onchange="saveStr(this.value)">
+        <input type="range" id="inp-str" min="0" max="100" value="50"
+          oninput="clearPresetUI(); updVal('str-disp', this.value, '%')" onchange="saveStr(this.value)">
       </div>
 
       <div class="setting-item"
@@ -1240,24 +1240,25 @@
             document.getElementById('inp-str').value = d.str;
             updVal('str-disp', d.str, '%');
           }
-          if (d.cnt !== undefined) {
-            tgtCount = d.cnt;
-            document.querySelectorAll('.chk-btn').forEach(b => {
-              if (parseInt(b.innerText) === tgtCount) b.classList.add('active');
-              else b.classList.remove('active');
-            });
-          }
+
+          if (d.cnt !== undefined) tgtCount = d.cnt;
+
+          // Ensure Count UI matches current tgtCount (default 3 if backend empty)
+          document.querySelectorAll('.chk-btn').forEach(b => {
+            if (parseInt(b.innerText) === tgtCount) b.classList.add('active');
+            else b.classList.remove('active');
+          });
+
           if (d.led_cnt !== undefined) {
             document.getElementById('inp-led-cnt').value = d.led_cnt;
             document.getElementById('led-cnt-disp').innerText = d.led_cnt;
           }
 
-          // Initial Preset Matching
+          // Initial Preset Matching (v2.5 defaults)
           let matched = null;
-          // Note: soft=2, normal=3, kosen=5
-          if (d.str == 30 && d.cnt == 2) matched = 'やわらか';
-          else if (d.str == 50 && d.cnt == 3) matched = 'ふつう';
-          else if (d.str == 90 && d.cnt == 5) matched = '高専生用';
+          if (d.str == 80 && d.cnt == 2) matched = 'やわらか';
+          else if (d.str == 90 && d.cnt == 3) matched = 'ふつう';
+          else if (d.str == 95 && d.cnt == 5) matched = '高専生用';
 
           document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
           if (matched) {
@@ -1277,6 +1278,11 @@
         });
     }
     fetchSettings();
+
+    function clearPresetUI() {
+      document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+      currentPresetName = "Custom";
+    }
 
     function saveHold(v) { fetch('/api/settings?hold=' + v).then(() => updTimeDisp()); }
     function saveReach(v) { fetch('/api/settings?reach=' + v).then(() => updTimeDisp()); }
@@ -1341,8 +1347,7 @@
       el.classList.add('active');
 
       // Manual Override: Clear preset
-      document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-      currentPresetName = "Custom";
+      clearPresetUI();
 
       fetch('/api/settings?cnt=' + n).catch(() => { });
 
