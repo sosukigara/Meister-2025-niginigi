@@ -6,6 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Onigiri Journal</title>
   <title>Onigiri Journal</title>
+  
+  <!-- スクリーンショット用ライブラリ -->
+  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 
   <style>
     :root {
@@ -107,6 +110,34 @@
       display: none;
     }
 
+    /* スクショボタン */
+    .capture-btn {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      padding: 14px 24px;
+      font-size: 1rem;
+      font-weight: bold;
+      color: white;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+      border-radius: 30px;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+      transition: transform 0.2s, box-shadow 0.2s;
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .capture-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+    }
+    .capture-btn:active {
+      transform: scale(0.95);
+    }
+
     /* Connection Lost State - DISABLED FOR MOCKUP
     body.offline {
       opacity: 0.6;
@@ -191,7 +222,7 @@
       flex-direction: column;
       min-height: 100%;
       width: 100%;
-      padding-top: 20px;
+      padding-top: 40px;
       padding-bottom: 20px;
       padding-left: 20px;
       padding-right: 20px;
@@ -504,8 +535,10 @@
       justify-content: center;
       gap: 8px;
       cursor: pointer;
-      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.4);
+      /* box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.4); removed for screenshot artifact */
       transition: transform 0.1s;
+      overflow: hidden;
+      background-clip: padding-box;
     }
 
     .action-btn:active {
@@ -521,6 +554,7 @@
       background: var(--danger);
       color: white;
       display: none;
+      overflow: hidden; /* Fix for corner rendering issues in screenshots */
     }
 
     .running .btn-start {
@@ -529,6 +563,39 @@
 
     .running .btn-stop {
       display: flex;
+    }
+
+    /* Screen Capture Range Dummy */
+    .range-wrapper { position: relative; width: 100%; height: 44px; }
+    .range-dummy {
+      display: none;
+      width: 100%;
+      height: 14px;
+      background: #e5e5ea;
+      border-radius: 7px;
+      position: absolute;
+      top: 15px;
+      pointer-events: none;
+    }
+    .range-dummy-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #e5e5ea 0%, #56d364 50%, #1a7f37 100%);
+      border-radius: 7px;
+      width: 100%; /* Background gradient covers whole, we mask or just use full */
+      /* Actually the original uses gradient on track. 
+         Let's just replicate the track style */
+    }
+    .range-dummy-thumb {
+      height: 32px;
+      width: 32px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 0.5px solid rgba(0, 0, 0, 0.04);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%) translateX(-50%); /* Center on position */
+      left: 50%;
     }
 
     /* Toggle Switch */
@@ -856,8 +923,11 @@
 
 <body>
 
+  <!-- スクショボタン -->
+  <button class="capture-btn" onclick="captureScreen()">📷 スクショ</button>
+
   <!-- iPhone 14 Pro Max Frame -->
-  <div class="iphone-frame">
+  <div class="iphone-frame" id="iphone-frame">
     <!-- 物理ボタン -->
     <div class="power-btn"></div>
     <div class="volume-btn silent-switch"></div>
@@ -875,7 +945,7 @@
       <div style="display:flex; align-items:center; gap:8px;">
         <div class="conn-dot" id="conn-dot"></div>
         <h1 style="line-height:1; margin:0;">にぎにぎ</h1>
-        <span style="font-size:0.75rem; color:var(--text-sub); font-family:monospace; padding-top:4px;">v2.3</span>
+        <span style="font-size:0.75rem; color:var(--text-sub); font-family:monospace; padding-top:4px;">v2.8</span>
       </div>
 
       <!-- Sensor Control -->
@@ -932,8 +1002,14 @@
           <span class="s-label">握りの強さ</span>
           <span class="s-val" id="str-disp">50%</span>
         </div>
-        <input type="range" id="inp-str" min="0" max="100" value="50"
-          oninput="clearPresetUI(); updVal('str-disp', this.value, '%')" onchange="saveStr(this.value)">
+        <div class="range-wrapper">
+          <input type="range" id="inp-str" min="0" max="100" value="50"
+            oninput="updateRangeDummy(this.value); clearPresetUI(); updVal('str-disp', this.value, '%')" onchange="saveStr(this.value)">
+          <div id="inp-str-dummy" class="range-dummy">
+            <div class="range-dummy-fill"></div>
+            <div class="range-dummy-thumb" id="inp-str-dummy-thumb"></div>
+          </div>
+        </div>
       </div>
 
       <div class="setting-item"
@@ -1962,6 +2038,69 @@
             document.getElementById(`max-angle-${i}`).value = d.max;
           });
       }
+    }
+
+
+    // スクショ対策：レンジスライダーのダミー表示更新
+    function updateRangeDummy(val) {
+      const thumb = document.getElementById('inp-str-dummy-thumb');
+      if (thumb) {
+        thumb.style.left = val + '%';
+      }
+    }
+    // 初期化実行
+    setTimeout(() => {
+        const inp = document.getElementById('inp-str');
+        if(inp) updateRangeDummy(inp.value);
+    }, 500);
+
+    // ========================================
+    // スクリーンショット機能
+    // ========================================
+    function captureScreen() {
+      const frame = document.getElementById('iphone-frame');
+      const btn = document.querySelector('.capture-btn');
+      
+      // ボタンを一時的に非表示
+      btn.style.display = 'none';
+      
+      // 現在の値をダミーに反映（念のため）
+      updateRangeDummy(document.getElementById('inp-str').value);
+
+      html2canvas(frame, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: null,
+        logging: false,
+        onclone: (clonedDoc) => {
+          const dummy = clonedDoc.getElementById('inp-str-dummy');
+          const inp = clonedDoc.getElementById('inp-str');
+          const thumb = clonedDoc.getElementById('inp-str-dummy-thumb');
+          const originalInp = document.getElementById('inp-str');
+          
+          if(dummy && inp && originalInp){
+            // 元の値位置をクローンに適用
+            thumb.style.left = originalInp.value + '%';
+            
+            inp.style.visibility = 'hidden'; // inputを見えなくする
+            dummy.style.display = 'block';   // ダミーを表示
+          }
+        }
+      }).then(function(canvas) {
+        // 画像としてダウンロード
+        const link = document.createElement('a');
+        link.download = 'niginigi-mockup-' + Date.now() + '.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        
+        // ボタンを再表示
+        btn.style.display = 'flex';
+      }).catch(function(err) {
+        console.error('Screenshot failed:', err);
+        alert('スクショに失敗しました');
+        btn.style.display = 'flex';
+      });
     }
 
 
