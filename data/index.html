@@ -1472,6 +1472,10 @@
 
     function stop() {
       isManualStop = true;
+      isRunning = false; // 即座にアニメーションフラグを落とす
+      document.body.classList.remove('running');
+      document.getElementById('yt-fill').style.width = '0%'; // バーを0にする
+      document.getElementById('status-badge').innerText = "待機中";
       fetch('/api/stop').catch(() => { });
     }
 
