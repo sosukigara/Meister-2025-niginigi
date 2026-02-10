@@ -1540,6 +1540,7 @@
           fetch('/api/settings?load=1')
             .then(r => r.json())
             .then(d => {
+              // 1. 基本設定の反映
               if (d.hold) document.getElementById('inp-hold').value = d.hold;
               if (d.reach) document.getElementById('inp-reach').value = d.reach;
               if (d.pin13 !== undefined) document.getElementById('chk-pin13').checked = (d.pin13 == 1);
@@ -1551,61 +1552,81 @@
                 document.getElementById('inp-sth').value = d.sth;
                 document.getElementById('sth-disp').innerText = d.sth;
               }
-              if (d.build) {
-                document.getElementById('build-disp').innerText = d.build;
-              }
-
-              if (d.str !== undefined) {
-                document.getElementById('inp-str').value = d.str;
-                updVal('str-disp', d.str, '%');
-              }
-
-              if (d.cnt !== undefined) tgtCount = d.cnt;
-
-
-
+              if (d.build) document.getElementById('build-disp').innerText = d.build;
               if (d.led_cnt !== undefined) {
                 document.getElementById('inp-led-cnt').value = d.led_cnt;
                 document.getElementById('led-cnt-disp').innerText = d.led_cnt;
               }
 
-              // Initial Preset Matching (v2.5 defaults)
-              let matched = null;
-              if (d.str == 80 && d.cnt == 2) matched = 'やわらか';
-              else if (d.str == 90 && d.cnt == 3) matched = 'ふつう';
-              else if (d.str == 95 && d.cnt == 5) matched = '高専生用';
+              // 2. 強さと回数を数値として確実に取得
+              const strVal = parseInt(d.str);
+              const cntVal = parseInt(d.cnt);
 
-              document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-              if (matched) {
-                const btn = document.querySelector(`.preset-btn[data-name="${matched}"]`);
-                if (btn) btn.classList.add('active');
-                currentPresetName = matched;
-
-                // ★追加: 読み込み時もグラデーション設定値を同期する
-                const gEnd = document.getElementById('inp-grad-end');
-                const gEndDisp = document.getElementById('grad-end-disp');
-                if (gEnd && gEndDisp) {
-                  if (matched === 'やわらか') { gEnd.value = 80; }
-                  else if (matched === 'ふつう') { gEnd.value = 90; }
-                  else if (matched === '高専生用') { gEnd.value = 100; }
-                  gEndDisp.innerText = gEnd.value + '%';
-                }
-              } else {
-                currentPresetName = "Custom";
+              if (!isNaN(strVal)) {
+                document.getElementById('inp-str').value = strVal;
+                updVal('str-disp', strVal, '%');
               }
 
+              if (!isNaN(cntVal)) {
+                tgtCount = cntVal;
+              }
 
+              // 3. プリセット判定とUI更新 (try-catchで保護)
+              try {
+                // いったん全ての選択状態を解除
+                document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
 
+                let matched = null;
+                if (strVal === 80 && cntVal === 2) matched = 'やわらか';
+                else if (strVal === 90 && cntVal === 3) matched = 'ふつう';
+                else if (strVal === 95 && cntVal === 5) matched = '高専生用';
+
+                if (matched) {
+                  const btn = document.querySelector(`.preset-btn[data-name="${matched}"]`);
+                  if (btn) btn.classList.add('active');
+                  currentPresetName = matched;
+
+                  // グラデーション設定の同期
+                  const gEnd = document.getElementById('inp-grad-end');
+                  const gEndDisp = document.getElementById('grad-end-disp');
+                  if (gEnd && gEndDisp) {
+                    let endVal = 100; // デフォルト
+                    if (matched === 'やわらか') endVal = 80;
+                    if (matched === 'ふつう') endVal = 90;
+                    if (matched === '高専生用') endVal = 100;
+
+                    gEnd.value = endVal;
+                    gEndDisp.innerText = endVal + '%';
+                  }
+                } else {
+                  currentPresetName = "Custom";
+                }
+              } catch (e) {
+                console.error("Preset match error:", e);
+              }
+
+              // 4. 回数ボタンの表示更新 (try-catchで保護)
+              try {
+                const currentTgt = parseInt(tgtCount);
+                document.querySelectorAll('.chk-btn').forEach(b => {
+                  const btnVal = parseInt(b.innerText.trim());
+                  if (btnVal === currentTgt) {
+                    b.classList.add('active');
+                  } else {
+                    b.classList.remove('active');
+                  }
+                });
+              } catch (e) {
+                console.error("Count btn error:", e);
+              }
+
+              // 5. 時間表示更新
               updTimeDisp();
-
-              // Ensure Count UI matches current tgtCount (move to end)
-              document.querySelectorAll('.chk-btn').forEach(b => {
-                if (parseInt(b.innerText.trim()) === parseInt(tgtCount)) b.classList.add('active');
-                else b.classList.remove('active');
-              });
               renderMyPresets();
               setTimeout(() => document.body.classList.add('ready'), 50);
+
             }).catch(e => {
+              console.error("Fetch failed:", e);
               updTimeDisp();
               document.body.classList.add('ready');
             });
