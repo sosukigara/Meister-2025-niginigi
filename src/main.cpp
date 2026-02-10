@@ -170,7 +170,7 @@ unsigned long sessionStartTime = 0;
 float holdTimeSec = 0.5;
 float reachTimeSec = 0.5;
 
-int targetStrength = 90; // Default to Normal (v2.6+)
+int targetStrength = 90; // Default to Normal (v2.9+)
 int targetCount = 3;
 
 // ★追加: グラデーション用変数

@@ -814,7 +814,7 @@
       <div style="display:flex; align-items:center; gap:8px;">
         <div class="conn-dot" id="conn-dot"></div>
         <h1 style="line-height:1; margin:0;">にぎにぎ</h1>
-        <span style="font-size:0.75rem; color:var(--text-sub); font-family:monospace; padding-top:4px;">v2.7</span>
+        <span style="font-size:0.75rem; color:var(--text-sub); font-family:monospace; padding-top:4px;">v2.9</span>
       </div>
 
       <!-- Sensor Control -->
@@ -944,7 +944,7 @@
       <div class="setting-item">
         <span class="s-label">システム情報</span>
         <div style="margin-top:8px; font-size:0.9rem; color:var(--text-sub);">
-          <div>Version: <span style="font-family:monospace;">2.7</span></div>
+          <div>Version: <span style="font-family:monospace;">2.9</span></div>
           <div>Build: <span style="font-family:monospace;" id="build-disp">...</span></div>
           <div>IP: <span style="font-family:monospace;" id="ip-disp">...</span></div>
         </div>
@@ -1301,7 +1301,7 @@
             document.getElementById('led-cnt-disp').innerText = d.led_cnt;
           }
 
-          // Initial Preset Matching (v2.5 defaults)
+          // Initial Preset Matching (v2.9 defaults)
           let matched = null;
           if (d.str == 80 && d.cnt == 2) matched = 'やわらか';
           else if (d.str == 90 && d.cnt == 3) matched = 'ふつう';
