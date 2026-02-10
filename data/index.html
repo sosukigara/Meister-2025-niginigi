@@ -1290,11 +1290,7 @@
 
           if (d.cnt !== undefined) tgtCount = d.cnt;
 
-          // Ensure Count UI matches current tgtCount (default 3 if backend empty)
-          document.querySelectorAll('.chk-btn').forEach(b => {
-            if (parseInt(b.innerText.trim()) === parseInt(tgtCount)) b.classList.add('active');
-            else b.classList.remove('active');
-          });
+
 
           if (d.led_cnt !== undefined) {
             document.getElementById('inp-led-cnt').value = d.led_cnt;
@@ -1315,6 +1311,12 @@
           } else {
             currentPresetName = "Custom";
           }
+
+          // Ensure Count UI matches current tgtCount
+          document.querySelectorAll('.chk-btn').forEach(b => {
+            if (parseInt(b.innerText.trim()) === parseInt(tgtCount)) b.classList.add('active');
+            else b.classList.remove('active');
+          });
 
           updTimeDisp();
           renderMyPresets();
@@ -1407,26 +1409,32 @@
       currentPresetName = el.getAttribute('data-name');
 
       const s = document.getElementById('inp-str');
+      const gEnd = document.getElementById('inp-grad-end');
+      const gEndDisp = document.getElementById('grad-end-disp');
       let count = 3;
 
       if (mode === 'soft') {
         s.value = 80;
+        if (gEnd) gEnd.value = 80;
         count = 2;
       }
       if (mode === 'normal') {
         s.value = 90;
+        if (gEnd) gEnd.value = 90;
         count = 3;
       }
       if (mode === 'kosen') {
         s.value = 95;
+        if (gEnd) gEnd.value = 100;
         count = 5;
       }
 
       updVal('str-disp', s.value, '%');
+      if (gEnd && gEndDisp) gEndDisp.innerText = gEnd.value + '%';
 
       tgtCount = count;
       document.querySelectorAll('.chk-btn').forEach(b => {
-        if (parseInt(b.innerText) === count) {
+        if (parseInt(b.innerText.trim()) === count) {
           b.classList.add('active');
         } else {
           b.classList.remove('active');
