@@ -788,21 +788,6 @@
         font-size: 1.1rem;
       }
     }
-
-    /* グラデーションモード時のUI変化用 */
-    .grad-mode .single-slider {
-      display: none;
-    }
-
-    .grad-mode .grad-slider {
-      display: flex;
-    }
-
-    .grad-slider {
-      display: none;
-      gap: 10px;
-      align-items: center;
-    }
   </style>
 </head>
 
@@ -866,46 +851,12 @@
 
     <!-- 3. Settings (Basic) -->
     <div class="card card-settings">
-      <div class="setting-item" style="padding-bottom: 0; border-bottom: none;">
-        <div class="s-header">
-          <span class="s-label">握りの強さ</span>
-          <div style="display:flex; align-items:center; gap:8px;">
-            <span style="font-size:0.8rem; color:var(--text-sub);">グラデーション</span>
-            <label class="switch" style="transform:scale(0.8);">
-              <input type="checkbox" id="chk-grad" onchange="toggleGradation(this)">
-              <span class="slider round"></span>
-            </label>
-          </div>
-        </div>
-      </div>
-
       <div class="setting-item single-slider" id="ui-normal-str">
         <div class="s-header" style="margin-top:0;">
           <span class="s-val" id="str-disp" style="margin-left:auto;">50%</span>
         </div>
         <input type="range" id="inp-str" min="0" max="100" value="50"
           oninput="clearPresetUI(); updVal('str-disp', this.value, '%')" onchange="saveStr(this.value)">
-      </div>
-
-      <div class="setting-item grad-slider" id="ui-grad-str" style="display:none; flex-direction:column;">
-        <div style="width:100%; margin-bottom:10px;">
-          <div class="s-header" style="margin:0 0 4px 0;">
-            <span style="font-size:0.85rem; color:var(--text-sub);">開始</span>
-            <span class="s-val" id="grad-start-disp">30%</span>
-          </div>
-          <input type="range" id="inp-grad-start" min="0" max="100" value="30"
-            oninput="document.getElementById('grad-start-disp').innerText = this.value + '%'"
-            onchange="saveGradStart(this.value)">
-        </div>
-        <div style="width:100%;">
-          <div class="s-header" style="margin:0 0 4px 0;">
-            <span style="font-size:0.85rem; color:var(--text-sub);">終了</span>
-            <span class="s-val" id="grad-end-disp">100%</span>
-          </div>
-          <input type="range" id="inp-grad-end" min="0" max="100" value="100"
-            oninput="document.getElementById('grad-end-disp').innerText = this.value + '%'"
-            onchange="saveGradEnd(this.value)">
-        </div>
       </div>
 
       <div class="setting-item"
@@ -1301,20 +1252,7 @@
             setText('led-cnt-disp', d.led_cnt);
           }
 
-          // ★追加: グラデーション状態の反映
-          if (d.grad_enabled !== undefined) {
-            const isGrad = (d.grad_enabled == 1 || d.grad_enabled === true);
-            document.getElementById('chk-grad').checked = isGrad;
-            toggleGradationUI(isGrad);
-          }
-          if (d.grad_start !== undefined) {
-            setVal('inp-grad-start', d.grad_start);
-            setText('grad-start-disp', d.grad_start + '%');
-          }
-          if (d.grad_end !== undefined) {
-            setVal('inp-grad-end', d.grad_end);
-            setText('grad-end-disp', d.grad_end + '%');
-          }
+
 
           // 2. 強さと回数を数値として確実に取得
           const strVal = parseInt(d.str);
@@ -1366,12 +1304,7 @@
       const cnt = tgtCount;
       const preset = currentPresetName;
 
-      const gradEnabled = document.getElementById('chk-grad').checked ? 1 : 0;
-      const gradStart = document.getElementById('inp-grad-start').value;
-      const gradEnd = document.getElementById('inp-grad-end').value;
-
-      return `str=${str}&cnt=${cnt}&preset=${encodeURIComponent(preset)}` +
-        `&grad_enabled=${gradEnabled}&grad_start=${gradStart}&grad_end=${gradEnd}`;
+      return `str=${str}&cnt=${cnt}&preset=${encodeURIComponent(preset)}`;
     }
 
     // ★設定同期関数（パラメータ生成関数を使う）
@@ -1394,37 +1327,7 @@
     function saveHold(v) { fetch('/api/settings?hold=' + v).then(() => updTimeDisp()); }
     function saveReach(v) { fetch('/api/settings?reach=' + v).then(() => updTimeDisp()); }
     function togglePin13(el) { fetch('/api/pin13?val=' + (el.checked ? 1 : 0)); }
-    // ▼変更: グラデーション切り替え＆送信
-    function toggleGradation(el) {
-      const isGrad = el.checked;
-      toggleGradationUI(isGrad);
-      syncAllSettings(); // ★変更: 同期実行
-    }
 
-    // UI切り替えだけを切り出した関数
-    function toggleGradationUI(isGrad) {
-      const normalUI = document.getElementById('ui-normal-str');
-      const gradUI = document.getElementById('ui-grad-str');
-      if (normalUI && gradUI) {
-        if (isGrad) {
-          normalUI.style.display = 'none';
-          gradUI.style.display = 'flex';
-        } else {
-          normalUI.style.display = 'flex';
-          gradUI.style.display = 'none';
-        }
-      }
-    }
-
-    // ★追加: グラデーション値の保存（スライダー操作時）
-    function saveGradStart(val) {
-      document.getElementById('grad-start-disp').innerText = val + '%';
-      syncAllSettings(); // ★変更: 同期実行
-    }
-    function saveGradEnd(val) {
-      document.getElementById('grad-end-disp').innerText = val + '%';
-      syncAllSettings(); // ★変更: 同期実行
-    }
 
     function toggleSensor(el) {
       updSensorLbl(el.checked);
@@ -1499,28 +1402,20 @@
       currentPresetName = el.getAttribute('data-name');
 
       const s = document.getElementById('inp-str');
-      const gEnd = document.getElementById('inp-grad-end');
-      const gEndDisp = document.getElementById('grad-end-disp');
-      let count = 3;
-
       if (mode === 'soft') {
         s.value = 80;
-        if (gEnd) gEnd.value = 80;
         count = 2;
       }
       if (mode === 'normal') {
         s.value = 90;
-        if (gEnd) gEnd.value = 90;
         count = 3;
       }
       if (mode === 'kosen') {
         s.value = 95;
-        if (gEnd) gEnd.value = 100;
         count = 5;
       }
 
       updVal('str-disp', s.value, '%');
-      if (gEnd && gEndDisp) gEndDisp.innerText = gEnd.value + '%';
 
       tgtCount = count;
       document.querySelectorAll('.chk-btn').forEach(b => {
@@ -1583,20 +1478,7 @@
         });
     }
 
-    // ▼追加: グラデーション切り替え
-    function toggleGradation(el) {
-      const isGrad = el.checked;
-      const normalUI = document.getElementById('ui-normal-str');
-      const gradUI = document.getElementById('ui-grad-str');
 
-      if (isGrad) {
-        normalUI.style.display = 'none';
-        gradUI.style.display = 'flex';
-      } else {
-        normalUI.style.display = 'flex';
-        gradUI.style.display = 'none';
-      }
-    }
 
     function start() {
       // 以前のバラバラなロジックは捨てて、ここも統一！

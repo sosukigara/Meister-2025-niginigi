@@ -305,69 +305,32 @@ float measureDistance() {
   return readings[1];
 }
 
-// ★最強の共通関数：送られてきたパラメータを全部読み込む！
-void readWebParams() {
-  bool updated = false;
-
-  if (server.hasArg("str")) {
-    targetStrength = server.arg("str").toInt();
-    if (targetStrength < 0)
-      targetStrength = 0;
-    if (targetStrength > 100)
-      targetStrength = 100;
-    updated = true;
-  }
-
-  if (server.hasArg("cnt")) {
-    targetCount = server.arg("cnt").toInt();
-    if (targetCount < 1)
-      targetCount = 1;
-    updated = true;
-  }
-
-  if (server.hasArg("preset")) {
-    currentSessionPreset = server.arg("preset");
-    updated = true;
-  }
-
-  // その他の設定
-  if (server.hasArg("hold")) {
-    holdTimeSec = server.arg("hold").toFloat();
-    preferences.putFloat("hold", holdTimeSec);
-  }
-  if (server.hasArg("reach")) {
-    reachTimeSec = server.arg("reach").toFloat();
-    preferences.putFloat("reach", reachTimeSec);
-  }
-  if (server.hasArg("sth")) {
-    sensorThreshold = server.arg("sth").toFloat();
-    preferences.putFloat("sth", sensorThreshold);
-  }
-  if (server.hasArg("led_cnt")) {
-    activeLedCount = server.arg("led_cnt").toInt();
-    if (activeLedCount < 1)
-      activeLedCount = 1;
-    if (activeLedCount > 35)
-      activeLedCount = 35;
-    preferences.putInt("led_cnt", activeLedCount);
-  }
-
-  if (updated) {
-    Serial.printf("[Params] Updated: Str=%d, Cnt=%d, Preset=%s\n",
-                  targetStrength, targetCount, currentSessionPreset.c_str());
-  }
-}
-
 // API: Start
 void handleApiStart() {
-  // ★共通関数を呼ぶだけ！これで設定ロジックと完全に同期する
-  readWebParams();
+  // 受け取った値を即座にグローバル変数に適用
+  if (server.hasArg("str"))
+    targetStrength = server.arg("str").toInt();
+  if (server.hasArg("cnt"))
+    targetCount = server.arg("cnt").toInt();
+  if (server.hasArg("preset"))
+    currentSessionPreset = server.arg("preset");
+  else
+    currentSessionPreset = "カスタム";
 
-  // 保存もしておく（次回の起動時のため）
+  // 範囲チェック
+  if (targetStrength > 100)
+    targetStrength = 100;
+  if (targetStrength < 0)
+    targetStrength = 0;
+  if (targetCount < 1)
+    targetCount = 1;
+
+  // 保存
   preferences.putInt("str", targetStrength);
   preferences.putInt("cnt", targetCount);
 
-  Serial.println("[API] Start Triggered");
+  Serial.printf("[API] Start: Str=%d%%, Cnt=%d, Preset=%s\n", targetStrength,
+                targetCount, currentSessionPreset.c_str());
 
   currentCycle = 0;
   sessionStartTime = millis();
@@ -385,18 +348,48 @@ void handleApiStop() {
 }
 
 void handleApiSettings() {
-  // ★ここも共通関数を呼ぶだけ！
-  readWebParams();
+  bool paramsUpdated = false;
 
-  // 値をPreferencesに保存
-  preferences.putInt("str", targetStrength);
-  preferences.putInt("cnt", targetCount);
-  preferences.putFloat("hold", holdTimeSec);
-  preferences.putFloat("reach", reachTimeSec);
-  preferences.putFloat("sth", sensorThreshold);
-  preferences.putInt("led_cnt", activeLedCount);
+  // ★重要: 画面から送られてきた設定で、今動いてる変数を即更新する！
+  if (server.hasArg("str")) {
+    targetStrength = server.arg("str").toInt();
+    preferences.putInt("str", targetStrength);
+    paramsUpdated = true;
+  }
+  if (server.hasArg("cnt")) {
+    targetCount = server.arg("cnt").toInt();
+    preferences.putInt("cnt", targetCount);
+    paramsUpdated = true;
+  }
+  if (server.hasArg("preset")) {
+    currentSessionPreset = server.arg("preset");
+    paramsUpdated = true;
+  }
 
-  // レスポンス作成
+  // その他の設定
+  if (server.hasArg("hold")) {
+    holdTimeSec = server.arg("hold").toFloat();
+    preferences.putFloat("hold", holdTimeSec);
+  }
+  if (server.hasArg("reach")) {
+    reachTimeSec = server.arg("reach").toFloat();
+    preferences.putFloat("reach", reachTimeSec);
+  }
+  if (server.hasArg("sth")) {
+    sensorThreshold = server.arg("sth").toFloat();
+    preferences.putFloat("sth", sensorThreshold);
+  }
+  if (server.hasArg("led_cnt")) {
+    activeLedCount = server.arg("led_cnt").toInt();
+    preferences.putInt("led_cnt", activeLedCount);
+  }
+
+  if (paramsUpdated) {
+    Serial.printf("[API] Sync: Str=%d, Cnt=%d, Preset=%s\n", targetStrength,
+                  targetCount, currentSessionPreset.c_str());
+  }
+
+  // レスポンス
   JsonDocument doc;
   doc["hold"] = holdTimeSec;
   doc["reach"] = reachTimeSec;
@@ -406,11 +399,9 @@ void handleApiSettings() {
   doc["str"] = targetStrength;
   doc["cnt"] = targetCount;
   doc["led_cnt"] = activeLedCount;
-
-  // 現在の状態を返す
   doc["preset"] = currentSessionPreset;
 
-  doc["build"] = "2026-02-10 16:45";
+  doc["build"] = "2026-02-10 16:50";
 
   String output;
   serializeJson(doc, output);
@@ -838,31 +829,26 @@ void loop() {
 
   unsigned long now = millis();
 
-  // HC-SR04センサー測定 (200msごと)
-  if (now - lastDistanceMeasure > 200) {
+  // HC-SR04センサー測定 (100msごと)
+  if (now - lastDistanceMeasure > 100) {
     currentDistance = measureDistance();
     lastDistanceMeasure = now;
 
     if (currentState ==
-        IDLE) { // Only check if IDLE to prevent lag during operation? User
-                // wants button fix -> Optimization done in measureDistance
+        IDLE) { // Only check if IDLE to prevent lag during operation
       if (sensorEnabled && currentDistance < sensorThreshold &&
           currentDistance > 0.1) {
         sensorTriggerCount++;
         Serial.printf("Sensor Detect: %.1f cm (Count: %d)\n", currentDistance,
                       sensorTriggerCount);
 
-        // 3回連続検知 (approx 600ms) で開始
-        if (sensorTriggerCount >= 3) {
+        // 2回連続検知 (approx 200ms) で開始
+        if (sensorTriggerCount >= 2) {
           Serial.println(">>> Sensor START Triggered");
           sensorTriggerCount = 0;
           currentCycle = 0;
           sessionStartTime = millis();
           currentState = PREPARE_SQUEEZE;
-
-          // ★変更: センサー自動プリセットへの強制上書きを削除！
-          // これで現在選択されている currentSessionPreset がそのまま使われるで
-          // currentSessionPreset = "センサー自動";
         }
       } else {
         sensorTriggerCount = 0;
@@ -992,8 +978,8 @@ void loop() {
     unsigned long elapsed = now - stateStartTime;
     int startAngle = 270;
 
-    // ★変更: 今回のサイクルの目標強度を計算 (グラデーション削除)
-    int currentTargetStr = targetStrength; // 常に固定強度
+    // ★シンプル化: グラデーション計算を削除して、設定値をそのまま使う
+    int currentTargetStr = targetStrength;
 
     // 計算した強度を角度に変換
     int targetAngle = strengthToAngle(currentTargetStr);

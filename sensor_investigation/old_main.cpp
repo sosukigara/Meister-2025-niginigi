@@ -173,6 +173,11 @@ float reachTimeSec = 0.5;
 int targetStrength = 90; // Default to Normal (v3.0+)
 int targetCount = 3;
 
+// ★追加: グラデーション用変数
+bool gradationEnabled = false;
+int gradationStart = 50;
+int gradationEnd = 100;
+
 int currentCycle = 0;
 int pin13State = 0;
 int activeLedCount = 35;
@@ -305,69 +310,50 @@ float measureDistance() {
   return readings[1];
 }
 
-// ★最強の共通関数：送られてきたパラメータを全部読み込む！
-void readWebParams() {
-  bool updated = false;
-
-  if (server.hasArg("str")) {
-    targetStrength = server.arg("str").toInt();
-    if (targetStrength < 0)
-      targetStrength = 0;
-    if (targetStrength > 100)
-      targetStrength = 100;
-    updated = true;
-  }
-
-  if (server.hasArg("cnt")) {
-    targetCount = server.arg("cnt").toInt();
-    if (targetCount < 1)
-      targetCount = 1;
-    updated = true;
-  }
-
-  if (server.hasArg("preset")) {
-    currentSessionPreset = server.arg("preset");
-    updated = true;
-  }
-
-  // その他の設定
-  if (server.hasArg("hold")) {
-    holdTimeSec = server.arg("hold").toFloat();
-    preferences.putFloat("hold", holdTimeSec);
-  }
-  if (server.hasArg("reach")) {
-    reachTimeSec = server.arg("reach").toFloat();
-    preferences.putFloat("reach", reachTimeSec);
-  }
-  if (server.hasArg("sth")) {
-    sensorThreshold = server.arg("sth").toFloat();
-    preferences.putFloat("sth", sensorThreshold);
-  }
-  if (server.hasArg("led_cnt")) {
-    activeLedCount = server.arg("led_cnt").toInt();
-    if (activeLedCount < 1)
-      activeLedCount = 1;
-    if (activeLedCount > 35)
-      activeLedCount = 35;
-    preferences.putInt("led_cnt", activeLedCount);
-  }
-
-  if (updated) {
-    Serial.printf("[Params] Updated: Str=%d, Cnt=%d, Preset=%s\n",
-                  targetStrength, targetCount, currentSessionPreset.c_str());
-  }
-}
-
 // API: Start
 void handleApiStart() {
-  // ★共通関数を呼ぶだけ！これで設定ロジックと完全に同期する
-  readWebParams();
+  if (server.hasArg("str"))
+    targetStrength = server.arg("str").toInt();
+  if (server.hasArg("cnt"))
+    targetCount = server.arg("cnt").toInt();
+  if (server.hasArg("preset"))
+    currentSessionPreset = server.arg("preset");
+  else
+    currentSessionPreset = "カスタム";
 
-  // 保存もしておく（次回の起動時のため）
+  // ★追加: グラデーション設定の読み取り
+  if (server.hasArg("grad_start") && server.hasArg("grad_end")) {
+    gradationEnabled = true;
+    gradationStart = server.arg("grad_start").toInt();
+    gradationEnd = server.arg("grad_end").toInt();
+
+    // 範囲制限
+    if (gradationStart < 0)
+      gradationStart = 0;
+    if (gradationStart > 100)
+      gradationStart = 100;
+    if (gradationEnd < 0)
+      gradationEnd = 0;
+    if (gradationEnd > 100)
+      gradationEnd = 100;
+
+    Serial.printf("[API] Start Gradation: %d%% -> %d%%\n", gradationStart,
+                  gradationEnd);
+  } else {
+    gradationEnabled = false; // パラメータがない場合は無効化
+  }
+
+  if (targetStrength > 100)
+    targetStrength = 100;
+  if (targetStrength < 0)
+    targetStrength = 0;
+
+  // Persist current selection
   preferences.putInt("str", targetStrength);
   preferences.putInt("cnt", targetCount);
 
-  Serial.println("[API] Start Triggered");
+  Serial.printf("[API] Start: Str=%d%%, Cnt=%d, Preset=%s\n", targetStrength,
+                targetCount, currentSessionPreset.c_str());
 
   currentCycle = 0;
   sessionStartTime = millis();
@@ -385,18 +371,78 @@ void handleApiStop() {
 }
 
 void handleApiSettings() {
-  // ★ここも共通関数を呼ぶだけ！
-  readWebParams();
+  bool paramsUpdated = false; // デバッグ用
 
-  // 値をPreferencesに保存
-  preferences.putInt("str", targetStrength);
-  preferences.putInt("cnt", targetCount);
-  preferences.putFloat("hold", holdTimeSec);
-  preferences.putFloat("reach", reachTimeSec);
-  preferences.putFloat("sth", sensorThreshold);
-  preferences.putInt("led_cnt", activeLedCount);
+  // ★追加: グラデーション有効無効
+  if (server.hasArg("grad_enabled")) {
+    gradationEnabled = (server.arg("grad_enabled").toInt() == 1);
+    paramsUpdated = true;
+  }
 
-  // レスポンス作成
+  // ★追加: グラデーション開始・終了
+  if (server.hasArg("grad_start")) {
+    gradationStart = server.arg("grad_start").toInt();
+    if (gradationStart < 0)
+      gradationStart = 0;
+    if (gradationStart > 100)
+      gradationStart = 100;
+    paramsUpdated = true;
+  }
+  if (server.hasArg("grad_end")) {
+    gradationEnd = server.arg("grad_end").toInt();
+    if (gradationEnd < 0)
+      gradationEnd = 0;
+    if (gradationEnd > 100)
+      gradationEnd = 100;
+    paramsUpdated = true;
+  }
+
+  // ★追加: プリセット名
+  if (server.hasArg("preset")) {
+    currentSessionPreset = server.arg("preset");
+    paramsUpdated = true;
+  }
+
+  if (server.hasArg("led_cnt")) {
+    int cnt = server.arg("led_cnt").toInt();
+    if (cnt < 1)
+      cnt = 1;
+    if (cnt > 35)
+      cnt = 35;
+    activeLedCount = cnt;
+    preferences.putInt("led_cnt", activeLedCount);
+    Serial.printf("[API] LED Count: %d\n", activeLedCount);
+  }
+  if (server.hasArg("hold")) {
+    holdTimeSec = server.arg("hold").toFloat();
+    preferences.putFloat("hold", holdTimeSec);
+  }
+  if (server.hasArg("reach")) {
+    reachTimeSec = server.arg("reach").toFloat();
+    preferences.putFloat("reach", reachTimeSec);
+  }
+  if (server.hasArg("str")) {
+    targetStrength = server.arg("str").toInt();
+    preferences.putInt("str", targetStrength);
+    paramsUpdated = true;
+  }
+  if (server.hasArg("cnt")) {
+    targetCount = server.arg("cnt").toInt();
+    preferences.putInt("cnt", targetCount);
+    paramsUpdated = true;
+  }
+  if (server.hasArg("sth")) {
+    sensorThreshold = server.arg("sth").toFloat();
+    preferences.putFloat("sth", sensorThreshold);
+  }
+
+  if (paramsUpdated) {
+    Serial.printf(
+        "[API] Sync Settings: Str=%d, Cnt=%d, Grad=%d(%d-%d), Pre=%s\n",
+        targetStrength, targetCount, gradationEnabled, gradationStart,
+        gradationEnd, currentSessionPreset.c_str());
+  }
+
   JsonDocument doc;
   doc["hold"] = holdTimeSec;
   doc["reach"] = reachTimeSec;
@@ -407,10 +453,13 @@ void handleApiSettings() {
   doc["cnt"] = targetCount;
   doc["led_cnt"] = activeLedCount;
 
-  // 現在の状態を返す
+  // ★現在の状態を返す
+  doc["grad_enabled"] = gradationEnabled;
+  doc["grad_start"] = gradationStart;
+  doc["grad_end"] = gradationEnd;
   doc["preset"] = currentSessionPreset;
 
-  doc["build"] = "2026-02-10 16:45";
+  doc["build"] = "2026-02-10 16:35";
 
   String output;
   serializeJson(doc, output);
@@ -992,8 +1041,21 @@ void loop() {
     unsigned long elapsed = now - stateStartTime;
     int startAngle = 270;
 
-    // ★変更: 今回のサイクルの目標強度を計算 (グラデーション削除)
-    int currentTargetStr = targetStrength; // 常に固定強度
+    // ★変更: 今回のサイクルの目標強度を計算
+    int currentTargetStr = targetStrength; // デフォルトは固定強度
+
+    if (gradationEnabled) {
+      if (targetCount > 1) {
+        // 線形補間: 開始値 + (終了値 - 開始値) * (現在の回数 / (総回数 - 1))
+        // currentCycleは0から始まります (0, 1, 2...)
+        float progress = (float)currentCycle / (float)(targetCount - 1);
+        currentTargetStr =
+            gradationStart + (int)((gradationEnd - gradationStart) * progress);
+      } else {
+        // 1回だけの場合は終了値を使う
+        currentTargetStr = gradationEnd;
+      }
+    }
 
     // 計算した強度を角度に変換
     int targetAngle = strengthToAngle(currentTargetStr);
