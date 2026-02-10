@@ -1359,28 +1359,30 @@
     }
     fetchSettings();
 
-    // ★追加: 全設定をESP32に同期する最強の関数
+    // ★共通: パラメータ生成関数
+    // これを使えば、start時もsync時も絶対に同じデータを送れる！
+    function getParamsQuery() {
+      const str = document.getElementById('inp-str').value;
+      const cnt = tgtCount;
+      const preset = currentPresetName;
+
+      const gradEnabled = document.getElementById('chk-grad').checked ? 1 : 0;
+      const gradStart = document.getElementById('inp-grad-start').value;
+      const gradEnd = document.getElementById('inp-grad-end').value;
+
+      return `str=${str}&cnt=${cnt}&preset=${encodeURIComponent(preset)}` +
+        `&grad_enabled=${gradEnabled}&grad_start=${gradStart}&grad_end=${gradEnd}`;
+    }
+
+    // ★設定同期関数（パラメータ生成関数を使う）
     let syncTimer = null;
     function syncAllSettings() {
       if (syncTimer) clearTimeout(syncTimer);
       syncTimer = setTimeout(() => {
-        // 現在の画面の値を全部かき集める
-        const str = document.getElementById('inp-str').value;
-        const cnt = tgtCount; // グローバル変数
-        const preset = currentPresetName; // グローバル変数
-
-        // グラデーション関連
-        const gradEnabled = document.getElementById('chk-grad').checked ? 1 : 0;
-        const gradStart = document.getElementById('inp-grad-start').value;
-        const gradEnd = document.getElementById('inp-grad-end').value;
-
-        // URLを作る
-        const qs = `str=${str}&cnt=${cnt}&preset=${encodeURIComponent(preset)}` +
-          `&grad_enabled=${gradEnabled}&grad_start=${gradStart}&grad_end=${gradEnd}`;
-
+        const qs = getParamsQuery();
         console.log("Syncing:", qs);
-        fetch('/api/settings?' + qs).catch(e => console.log("Sync error", e));
-      }, 300); // 0.3秒のデバウンス（連打防止）
+        fetch('/api/settings?' + qs).catch(e => console.log("Sync Fail"));
+      }, 300);
     }
 
     function clearPresetUI() {
@@ -1597,47 +1599,42 @@
     }
 
     function start() {
-      const s = document.getElementById('inp-str').value;
-      const cnt = tgtCount;
-      const preset = currentPresetName;
+      // 以前のバラバラなロジックは捨てて、ここも統一！
+      const qs = getParamsQuery();
 
-      // グラデーション設定取得
-      const isGrad = document.getElementById('chk-grad').checked;
-      let query = `/api/start?str=${s}&cnt=${cnt}&preset=${encodeURIComponent(preset)}`;
-
-      if (isGrad) {
-        const gStart = document.getElementById('inp-grad-start').value;
-        const gEnd = document.getElementById('inp-grad-end').value;
-        query += `&grad_start=${gStart}&grad_end=${gEnd}`;
-
-        // 完了画面用に保存
-        runStrength = `${gStart}→${gEnd}`;
-      } else {
-        runStrength = s;
-      }
-
+      // 画面の状態更新
       isManualStop = false;
       isRunning = true;
-      isStarting = true; // Flag to prevent race condition
+      isStarting = true;
       document.body.classList.add('running');
       document.getElementById('status-badge').innerText = "準備中...";
 
       lastStartAction = Date.now();
       sessionStartTime = lastStartAction;
 
+      // 完了画面用の変数更新
       runPreset = currentPresetName;
-      runCount = cnt;
+      runCount = tgtCount;
 
+      // グラデーションか通常かで表示を変える
+      const isGrad = document.getElementById('chk-grad').checked;
+      if (isGrad) {
+        const gs = document.getElementById('inp-grad-start').value;
+        const ge = document.getElementById('inp-grad-end').value;
+        runStrength = `${gs}→${ge}`;
+      } else {
+        runStrength = document.getElementById('inp-str').value;
+      }
+
+      // 時間計算
       const h = parseFloat(document.getElementById('inp-hold').value) || 0.5;
       const r = parseFloat(document.getElementById('inp-reach').value) || 0.5;
-      // 理論値に合わせて補正
       sessionTotalDur = 0.3 + (tgtCount * (r + h + 0.5));
       if (sessionTotalDur < 1) sessionTotalDur = 1;
 
-      // プリセット名も送信
-      // プリセット名も送信
-      fetch(query)
-        .then(() => setTimeout(() => isStarting = false, 5000)) // タイムアウト延長
+      // 送信！
+      fetch('/api/start?' + qs)
+        .then(() => setTimeout(() => isStarting = false, 5000))
         .catch(() => { isStarting = false; });
     }
 
