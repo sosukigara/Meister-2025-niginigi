@@ -371,6 +371,36 @@ void handleApiStop() {
 }
 
 void handleApiSettings() {
+  // ★追加: グラデーション有効無効
+  if (server.hasArg("grad_enabled")) {
+    gradationEnabled = (server.arg("grad_enabled").toInt() == 1);
+    Serial.printf("[API] Settings: Gradation Enabled = %s\n",
+                  gradationEnabled ? "TRUE" : "FALSE");
+  }
+
+  // ★追加: グラデーション開始・終了
+  if (server.hasArg("grad_start")) {
+    gradationStart = server.arg("grad_start").toInt();
+    if (gradationStart < 0)
+      gradationStart = 0;
+    if (gradationStart > 100)
+      gradationStart = 100;
+  }
+  if (server.hasArg("grad_end")) {
+    gradationEnd = server.arg("grad_end").toInt();
+    if (gradationEnd < 0)
+      gradationEnd = 0;
+    if (gradationEnd > 100)
+      gradationEnd = 100;
+  }
+
+  // ★追加: プリセット名
+  if (server.hasArg("preset")) {
+    currentSessionPreset = server.arg("preset");
+    Serial.printf("[API] Settings: Preset = %s\n",
+                  currentSessionPreset.c_str());
+  }
+
   if (server.hasArg("led_cnt")) {
     int cnt = server.arg("led_cnt").toInt();
     if (cnt < 1)
@@ -411,7 +441,14 @@ void handleApiSettings() {
   doc["str"] = targetStrength;
   doc["cnt"] = targetCount;
   doc["led_cnt"] = activeLedCount;
-  doc["build"] = "2026-02-05 16:51";
+
+  // ★現在の状態を返す
+  doc["grad_enabled"] = gradationEnabled;
+  doc["grad_start"] = gradationStart;
+  doc["grad_end"] = gradationEnd;
+  doc["preset"] = currentSessionPreset;
+
+  doc["build"] = "2026-02-10 16:20";
 
   String output;
   serializeJson(doc, output);
@@ -860,7 +897,10 @@ void loop() {
           currentCycle = 0;
           sessionStartTime = millis();
           currentState = PREPARE_SQUEEZE;
-          currentSessionPreset = "センサー自動";
+
+          // ★変更: センサー自動プリセットへの強制上書きを削除！
+          // これで現在選択されている currentSessionPreset がそのまま使われるで
+          // currentSessionPreset = "センサー自動";
         }
       } else {
         sensorTriggerCount = 0;

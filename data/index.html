@@ -894,7 +894,8 @@
             <span class="s-val" id="grad-start-disp">30%</span>
           </div>
           <input type="range" id="inp-grad-start" min="0" max="100" value="30"
-            oninput="document.getElementById('grad-start-disp').innerText = this.value + '%'">
+            oninput="document.getElementById('grad-start-disp').innerText = this.value + '%'"
+            onchange="saveGradStart(this.value)">
         </div>
         <div style="width:100%;">
           <div class="s-header" style="margin:0 0 4px 0;">
@@ -902,7 +903,8 @@
             <span class="s-val" id="grad-end-disp">100%</span>
           </div>
           <input type="range" id="inp-grad-end" min="0" max="100" value="100"
-            oninput="document.getElementById('grad-end-disp').innerText = this.value + '%'">
+            oninput="document.getElementById('grad-end-disp').innerText = this.value + '%'"
+            onchange="saveGradEnd(this.value)">
         </div>
       </div>
 
@@ -1274,7 +1276,7 @@
           };
           const setChecked = (id, val) => {
             const el = document.getElementById(id);
-            if (el) el.checked = (val == 1);
+            if (el) el.checked = (val == 1 || val === true);
           };
           const setText = (id, val) => {
             const el = document.getElementById(id);
@@ -1287,7 +1289,7 @@
           if (d.pin13 !== undefined) setChecked('chk-pin13', d.pin13);
           if (d.sensor !== undefined) {
             setChecked('chk-sensor', d.sensor);
-            updSensorLbl(d.sensor == 1);
+            updSensorLbl(d.sensor == 1 || d.sensor === true);
           }
           if (d.sth) {
             setVal('inp-sth', d.sth);
@@ -1297,6 +1299,21 @@
           if (d.led_cnt !== undefined) {
             setVal('inp-led-cnt', d.led_cnt);
             setText('led-cnt-disp', d.led_cnt);
+          }
+
+          // ★追加: グラデーション状態の反映
+          if (d.grad_enabled !== undefined) {
+            const isGrad = (d.grad_enabled == 1 || d.grad_enabled === true);
+            document.getElementById('chk-grad').checked = isGrad;
+            toggleGradationUI(isGrad);
+          }
+          if (d.grad_start !== undefined) {
+            setVal('inp-grad-start', d.grad_start);
+            setText('grad-start-disp', d.grad_start + '%');
+          }
+          if (d.grad_end !== undefined) {
+            setVal('inp-grad-end', d.grad_end);
+            setText('grad-end-disp', d.grad_end + '%');
           }
 
           // 2. 強さと回数を数値として確実に取得
@@ -1312,54 +1329,22 @@
             tgtCount = cntVal;
           }
 
-          // 3. プリセット判定とUI更新 (try-catchで保護)
-          try {
-            // いったん全ての選択状態を解除
-            document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-
-            let matched = null;
-            if (strVal === 80 && cntVal === 2) matched = 'やわらか';
-            else if (strVal === 90 && cntVal === 3) matched = 'ふつう';
-            else if (strVal === 95 && cntVal === 5) matched = '高専生用';
-
-            if (matched) {
-              const btn = document.querySelector(`.preset-btn[data-name="${matched}"]`);
-              if (btn) btn.classList.add('active');
-              currentPresetName = matched;
-
-              // グラデーション設定の同期
-              const gEnd = document.getElementById('inp-grad-end');
-              const gEndDisp = document.getElementById('grad-end-disp');
-              if (gEnd && gEndDisp) {
-                let endVal = 100; // デフォルト
-                if (matched === 'やわらか') endVal = 80;
-                if (matched === 'ふつう') endVal = 90;
-                if (matched === '高専生用') endVal = 100;
-
-                gEnd.value = endVal;
-                gEndDisp.innerText = endVal + '%';
-              }
+          // 3. プリセット判定とUI更新
+          currentPresetName = d.preset || "Custom";
+          document.querySelectorAll('.preset-btn').forEach(b => {
+            if (b.getAttribute('data-name') === currentPresetName) {
+              b.classList.add('active');
             } else {
-              currentPresetName = "Custom";
+              b.classList.remove('active');
             }
-          } catch (e) {
-            console.error("Preset match error:", e);
-          }
+          });
 
-          // 4. 回数ボタンの表示更新 (try-catchで保護)
-          try {
-            const currentTgt = parseInt(tgtCount);
-            document.querySelectorAll('.chk-btn').forEach(b => {
-              const btnVal = parseInt(b.innerText.trim());
-              if (btnVal === currentTgt) {
-                b.classList.add('active');
-              } else {
-                b.classList.remove('active');
-              }
-            });
-          } catch (e) {
-            console.error("Count btn error:", e);
-          }
+          // 4. 回数ボタンの表示更新
+          const currentTgt = parseInt(tgtCount);
+          document.querySelectorAll('.chk-btn').forEach(b => {
+            const btnVal = parseInt(b.innerText.trim());
+            b.classList.toggle('active', btnVal === currentTgt);
+          });
 
           // 5. 時間表示更新
           updTimeDisp();
@@ -1377,11 +1362,46 @@
     function clearPresetUI() {
       document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
       currentPresetName = "Custom";
+      // ★追加: カスタムになったことも通知
+      fetch('/api/settings?preset=' + encodeURIComponent("カスタム"));
     }
 
     function saveHold(v) { fetch('/api/settings?hold=' + v).then(() => updTimeDisp()); }
     function saveReach(v) { fetch('/api/settings?reach=' + v).then(() => updTimeDisp()); }
     function togglePin13(el) { fetch('/api/pin13?val=' + (el.checked ? 1 : 0)); }
+    // ▼変更: グラデーション切り替え＆送信
+    function toggleGradation(el) {
+      const isGrad = el.checked;
+      toggleGradationUI(isGrad);
+      // ★追加: 即時送信
+      fetch('/api/settings?grad_enabled=' + (isGrad ? 1 : 0));
+    }
+
+    // UI切り替えだけを切り出した関数
+    function toggleGradationUI(isGrad) {
+      const normalUI = document.getElementById('ui-normal-str');
+      const gradUI = document.getElementById('ui-grad-str');
+      if (normalUI && gradUI) {
+        if (isGrad) {
+          normalUI.style.display = 'none';
+          gradUI.style.display = 'flex';
+        } else {
+          normalUI.style.display = 'flex';
+          gradUI.style.display = 'none';
+        }
+      }
+    }
+
+    // ★追加: グラデーション値の保存（スライダー操作時）
+    function saveGradStart(val) {
+      document.getElementById('grad-start-disp').innerText = val + '%';
+      fetch('/api/settings?grad_start=' + val);
+    }
+    function saveGradEnd(val) {
+      document.getElementById('grad-end-disp').innerText = val + '%';
+      fetch('/api/settings?grad_end=' + val);
+    }
+
     function toggleSensor(el) {
       updSensorLbl(el.checked);
       fetch('/api/sensor_mode?val=' + (el.checked ? 1 : 0));
@@ -1481,6 +1501,9 @@
       updVal('str-disp', s.value, '%');
       if (gEnd && gEndDisp) gEndDisp.innerText = gEnd.value + '%';
 
+      // ★追加: グラデーション終了値も更新されたので送信しておく（グラデON時用）
+      if (gEnd) fetch('/api/settings?grad_end=' + gEnd.value);
+
       tgtCount = count;
       document.querySelectorAll('.chk-btn').forEach(b => {
         if (parseInt(b.innerText.trim()) === count) {
@@ -1493,7 +1516,8 @@
       // Sync params with debounce
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
-        fetch(`/api/settings?str=${s.value}&cnt=${count}`).catch(() => { });
+        // ★変更: プリセット名も含めて送信
+        fetch(`/api/settings?str=${s.value}&cnt=${count}&preset=${encodeURIComponent(currentPresetName)}`).catch(() => { });
       }, 500);
 
       if (!isRunning) updTimeDisp();
