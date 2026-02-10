@@ -383,7 +383,7 @@ void handleApiSettings() {
   doc["str"] = targetStrength;
   doc["cnt"] = targetCount;
   doc["led_cnt"] = activeLedCount;
-  doc["build"] = __DATE__ " " __TIME__;
+  doc["build"] = "v3.2 (2026-02-10)";
 
   String output;
   serializeJson(doc, output);
