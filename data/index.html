@@ -1243,179 +1243,210 @@
       setTimeout(() => el.classList.remove('show'), 2000);
     }
 
-    // Global Vars
-    let isRunning = false;
-    let isStarting = false;
-    let isManualStop = false;
-    let hasSessionFinished = false; // Debounce flag -> true when finished, reset on start
-    let sessionStartTime = 0;
-    let sessionTotalDur = 0;
-    let tgtCount = 3;
-    let currentPresetName = "Custom";
-    let lastStatus = "IDLE";
-    let lastStartAction = 0;
-    let debounceTimer = null; // レスポンス改善用
+    let ws;
+    let wsUrl = `ws://${window.location.hostname}:81/`;
+    let reconnectTimer = null;
 
+    function initWebSocket() {
+      if (ws) ws.close();
+      ws = new WebSocket(wsUrl);
 
-    // 完了画面用
-    let runPreset = "";
-    let runStrength = 0;
-    let runCount = 0;
+      ws.onopen = () => {
+        console.log("WS Connected");
+        setOnline(true);
+        if (reconnectTimer) clearTimeout(reconnectTimer);
+      };
 
-    document.getElementById('ip-disp').innerText = window.location.hostname;
+      ws.onclose = () => {
+        console.log("WS Closed");
+        setOnline(false);
+        if (!reconnectTimer) {
+          reconnectTimer = setTimeout(initWebSocket, 2000);
+        }
+      };
 
-    function fetchSettings() {
-      fetch('/api/settings?load=1')
-        .then(r => r.json())
-        .then(d => {
-          const setVal = (id, val) => {
-            const el = document.getElementById(id);
-            if (el) el.value = val;
-          };
-          const setChecked = (id, val) => {
-            const el = document.getElementById(id);
-            if (el) el.checked = (val == 1);
-          };
-          const setText = (id, val) => {
-            const el = document.getElementById(id);
-            if (el) el.innerText = val;
-          };
+      ws.onerror = (e) => {
+        console.error("WS Error", e);
+        ws.close();
+      };
 
-          // 1. 基本設定の反映
-          if (d.hold) setVal('inp-hold', d.hold);
-          if (d.reach) setVal('inp-reach', d.reach);
-          if (d.pin13 !== undefined) setChecked('chk-pin13', d.pin13);
-          if (d.sensor !== undefined) {
-            setChecked('chk-sensor', d.sensor);
-            updSensorLbl(d.sensor == 1);
-          }
-          if (d.sth) {
-            setVal('inp-sth', d.sth);
-            setText('sth-disp', d.sth);
-          }
-          if (d.build) setText('build-disp', d.build);
-          if (d.led_cnt !== undefined) {
-            setVal('inp-led-cnt', d.led_cnt);
-            setText('led-cnt-disp', d.led_cnt);
-          }
-
-          // 2. 強さと回数を数値として確実に取得
-          const strVal = parseInt(d.str);
-          const cntVal = parseInt(d.cnt);
-
-          if (!isNaN(strVal)) {
-            setVal('inp-str', strVal);
-            updVal('str-disp', strVal, '%');
-          }
-
-          if (!isNaN(cntVal)) {
-            tgtCount = cntVal;
-          }
-
-          // 3. プリセット判定とUI更新 (try-catchで保護)
-          try {
-            // いったん全ての選択状態を解除
-            document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-
-            let matched = null;
-            if (strVal === 80 && cntVal === 2) matched = 'やわらか';
-            else if (strVal === 90 && cntVal === 3) matched = 'ふつう';
-            else if (strVal === 95 && cntVal === 5) matched = '高専生用';
-
-            if (matched) {
-              const btn = document.querySelector(`.preset-btn[data-name="${matched}"]`);
-              if (btn) btn.classList.add('active');
-              currentPresetName = matched;
-
-              // グラデーション設定の同期
-              const gEnd = document.getElementById('inp-grad-end');
-              const gEndDisp = document.getElementById('grad-end-disp');
-              if (gEnd && gEndDisp) {
-                let endVal = 100; // デフォルト
-                if (matched === 'やわらか') endVal = 80;
-                if (matched === 'ふつう') endVal = 90;
-                if (matched === '高専生用') endVal = 100;
-
-                gEnd.value = endVal;
-                gEndDisp.innerText = endVal + '%';
-              }
-            } else {
-              currentPresetName = "Custom";
-            }
-          } catch (e) {
-            console.error("Preset match error:", e);
-          }
-
-          // 4. 回数ボタンの表示更新 (try-catchで保護)
-          try {
-            const currentTgt = parseInt(tgtCount);
-            document.querySelectorAll('.chk-btn').forEach(b => {
-              const btnVal = parseInt(b.innerText.trim());
-              if (btnVal === currentTgt) {
-                b.classList.add('active');
-              } else {
-                b.classList.remove('active');
-              }
-            });
-          } catch (e) {
-            console.error("Count btn error:", e);
-          }
-
-          // 5. 時間表示更新
-          updTimeDisp();
-          renderMyPresets();
-          setTimeout(() => document.body.classList.add('ready'), 50);
-
-        }).catch(e => {
-          console.error("Fetch failed:", e);
-          updTimeDisp();
-          document.body.classList.add('ready');
-        });
+      ws.onmessage = (e) => {
+        const d = JSON.parse(e.data);
+        if (d.type === "init") {
+          handleInit(d);
+        } else if (d.type === "status") {
+          handleStatus(d);
+        } else if (d.type === "history") {
+          renderHistory(d.data);
+        }
+      };
     }
-    fetchSettings();
+
+    function renderHistory(data) {
+      const list = document.getElementById('history-list');
+      list.innerHTML = "";
+      if (!data || data.length === 0) {
+        list.innerHTML = "<div style='padding:20px; text-align:center; color:#888;'>履歴はありません</div>";
+        return;
+      }
+      data.reverse().forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'history-row';
+        row.innerHTML = `
+              <div class="h-info">
+                 <span class="h-preset">${item.preset}</span>
+                 <div class="h-detail">強さ:${item.strength}% / ${item.count}回</div>
+              </div>
+              <div class="h-time">${item.time}</div>
+            `;
+        list.appendChild(row);
+      });
+    }
+
+    function handleInit(d) {
+      const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+      const setChecked = (id, val) => { const el = document.getElementById(id); if (el) el.checked = (val == 1 || val === true); };
+      const setText = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
+
+      if (d.hold) setVal('inp-hold', d.hold);
+      if (d.reach) setVal('inp-reach', d.reach);
+      if (d.sensor !== undefined) {
+        setChecked('chk-sensor', d.sensor);
+        updSensorLbl(d.sensor);
+      }
+      if (d.sth) {
+        setVal('inp-sth', d.sth);
+        setText('sth-disp', d.sth);
+      }
+      if (d.build) setText('build-disp', d.build);
+      if (d.led_cnt !== undefined) {
+        setVal('inp-led-cnt', d.led_cnt);
+        setText('led-cnt-disp', d.led_cnt);
+      }
+
+      // Calibration data
+      for (let i = 1; i <= 3; i++) {
+        if (d[`off${i}`] !== undefined) {
+          setVal(`inp-servo${i}-offset`, d[`off${i}`]);
+          setText(`servo${i}-offset-disp`, d[`off${i}`]);
+        }
+        if (d[`min${i}`] !== undefined) setVal(`min-angle-${i}`, d[`min${i}`]);
+        if (d[`max${i}`] !== undefined) setVal(`max-angle-${i}`, d[`max${i}`]);
+      }
+
+      setVal('inp-str', d.str);
+      updVal('str-disp', d.str, '%');
+      tgtCount = d.cnt;
+
+      const isGrad = !!d.grad_en;
+      document.getElementById('chk-grad').checked = isGrad;
+      toggleGradation({ checked: isGrad });
+      if (d.g_start) setVal('inp-grad-start', d.g_start);
+      if (d.g_end) {
+        setVal('inp-grad-end', d.g_end);
+        setText('grad-end-disp', d.g_end + '%');
+      }
+
+      // Preset activation
+      document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+      if (d.preset) {
+        currentPresetName = d.preset;
+        const btn = document.querySelector(`.preset-btn[data-name="${d.preset}"]`);
+        if (btn) btn.classList.add('active');
+      }
+
+      // Count button activation
+      document.querySelectorAll('.chk-btn').forEach(b => {
+        if (parseInt(b.innerText.trim()) === d.cnt) b.classList.add('active');
+        else b.classList.remove('active');
+      });
+
+      updTimeDisp();
+      renderMyPresets();
+      document.body.classList.add('ready');
+    }
+
+    function handleStatus(d) {
+      if (d.state !== 'IDLE') {
+        if (!isRunning) {
+          isRunning = true;
+          document.body.classList.add('running');
+          hasSessionFinished = false;
+        }
+
+        // Progress & Time
+        document.getElementById('yt-fill').style.width = d.prog + "%";
+        document.getElementById('time-display').innerText = fmtTime(Math.ceil(d.rem));
+
+        let txt = "動作中";
+        if (d.state === 'PREPARE_SQUEEZE') txt = "準備中...";
+        if (d.state === 'SQUEEZING') txt = "握り中";
+        if (d.state === 'HOLDING') txt = "保持中";
+        if (d.state === 'RELEASING') txt = "解放中";
+        document.getElementById('status-badge').innerText = `${txt} (${d.cycle}/${d.total})`;
+
+        // For completion modal
+        runPreset = d.preset || currentPresetName;
+        runStrength = d.str || document.getElementById('inp-str').value;
+        runCount = d.total || tgtCount;
+      } else {
+        if (isRunning) {
+          finishSession();
+        }
+      }
+    }
+
+    initWebSocket();
+
+
 
     function clearPresetUI() {
       document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
       currentPresetName = "Custom";
     }
 
-    function saveHold(v) { fetch('/api/settings?hold=' + v).then(() => updTimeDisp()); }
-    function saveReach(v) { fetch('/api/settings?reach=' + v).then(() => updTimeDisp()); }
-    function togglePin13(el) { fetch('/api/pin13?val=' + (el.checked ? 1 : 0)); }
+    function saveHold(v) { sendSet({ hold: parseFloat(v) }); updTimeDisp(); }
+    function saveReach(v) { sendSet({ reach: parseFloat(v) }); updTimeDisp(); }
     function toggleSensor(el) {
       updSensorLbl(el.checked);
-      fetch('/api/sensor_mode?val=' + (el.checked ? 1 : 0));
+      sendSet({ sensor: el.checked });
     }
     function saveSth(v) {
-      document.getElementById('sth-disp').innerText = v;
-      fetch('/api/settings?sth=' + v);
+      const val = parseFloat(v);
+      document.getElementById('sth-disp').innerText = val;
+      sendSet({ sth: val });
     }
-    function saveStr(v) { fetch('/api/settings?str=' + v); }
-    function updSensorLbl(isOn) {
-      const el = document.getElementById('sensor-lbl');
-      if (isOn) { el.innerText = "ON"; el.style.color = "var(--accent-blue)"; }
-      else { el.innerText = "OFF"; el.style.color = "var(--text-sub)"; }
+    function saveStr(v) { sendSet({ str: parseInt(v) }); }
+
+    function sendSet(obj) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ cmd: "set", ...obj }));
+      }
     }
 
     function manualServo(pct) {
       document.getElementById('man-val').innerText = pct + "%";
-      fetch('/api/manual?val=' + pct);
+      sendCmd("manual", { val: pct });
     }
 
     function toggleLedMode(el) {
-      const mode = el.checked ? "manual" : "auto";
-      fetch('/api/led_mode?mode=' + mode);
+      sendCmd("led_mode", { auto: !el.checked });
     }
     function setLedColorHex(hex) {
-      fetch('/api/led?color=' + encodeURIComponent(hex));
+      sendCmd("led_color", { hex: hex });
       document.getElementById('chk-led-manual').checked = true;
     }
     function setLedColor(r, g, b) {
-      fetch(`/api/led?r=${r}&g=${g}&b=${b}`);
+      sendCmd("led_color", { r, g, b });
       document.getElementById('chk-led-manual').checked = true;
-      // カラーピッカーの値も更新（近似）
       const hex = "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
       document.getElementById('inp-led-color').value = hex;
+    }
+
+    function sendCmd(cmd, obj = {}) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ cmd, ...obj }));
+      }
     }
 
     function updVal(id, v, unit) {
@@ -1439,16 +1470,11 @@
     }
 
     function setCount(n, el) {
-      if (debounceTimer) clearTimeout(debounceTimer); // Cancel pending preset save
       tgtCount = n;
       document.querySelectorAll('.chk-btn').forEach(b => b.classList.remove('active'));
       el.classList.add('active');
-
-      // Manual Override: Clear preset
       clearPresetUI();
-
-      fetch('/api/settings?cnt=' + n).catch(() => { });
-
+      sendSet({ cnt: n });
       if (!isRunning) updTimeDisp();
     }
 
@@ -1462,40 +1488,20 @@
       const gEndDisp = document.getElementById('grad-end-disp');
       let count = 3;
 
-      if (mode === 'soft') {
-        s.value = 80;
-        if (gEnd) gEnd.value = 80;
-        count = 2;
-      }
-      if (mode === 'normal') {
-        s.value = 90;
-        if (gEnd) gEnd.value = 90;
-        count = 3;
-      }
-      if (mode === 'kosen') {
-        s.value = 95;
-        if (gEnd) gEnd.value = 100;
-        count = 5;
-      }
+      if (mode === 'soft') { s.value = 80; if (gEnd) gEnd.value = 80; count = 2; }
+      if (mode === 'normal') { s.value = 90; if (gEnd) gEnd.value = 90; count = 3; }
+      if (mode === 'kosen') { s.value = 95; if (gEnd) gEnd.value = 100; count = 5; }
 
       updVal('str-disp', s.value, '%');
       if (gEnd && gEndDisp) gEndDisp.innerText = gEnd.value + '%';
 
       tgtCount = count;
       document.querySelectorAll('.chk-btn').forEach(b => {
-        if (parseInt(b.innerText.trim()) === count) {
-          b.classList.add('active');
-        } else {
-          b.classList.remove('active');
-        }
+        if (parseInt(b.innerText.trim()) === count) b.classList.add('active');
+        else b.classList.remove('active');
       });
 
-      // Sync params with debounce
-      if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => {
-        fetch(`/api/settings?str=${s.value}&cnt=${count}`).catch(() => { });
-      }, 500);
-
+      sendSet({ str: parseInt(s.value), cnt: count });
       if (!isRunning) updTimeDisp();
     }
 
@@ -1517,33 +1523,10 @@
     }
 
     function fetchHistory() {
-      const list = document.getElementById('history-list');
-      fetch('/api/history')
-        .then(r => r.json())
-        .then(data => {
-          list.innerHTML = "";
-          if (data.length === 0) {
-            list.innerHTML = "<div style='padding:20px; text-align:center; color:#888;'>履歴はありません</div>";
-            return;
-          }
-          // 新しい順に表示
-          data.reverse().forEach(item => {
-            const row = document.createElement('div');
-            row.className = 'history-row';
-            row.innerHTML = `
-                  <div class="h-info">
-                     <span class="h-preset">${item.preset}</span>
-                     <div class="h-detail">強さ:${item.strength}% / ${item.count}回</div>
-                  </div>
-                  <div class="h-time">${item.time}</div>
-                `;
-            list.appendChild(row);
-          });
-        })
-        .catch(e => {
-          list.innerHTML = "<div style='color:red; text-align:center;'>読み込みエラー</div>";
-        });
+      sendCmd("get_history");
     }
+
+    // handleStatus will be updated to handle history response or a new handler
 
     // ▼追加: グラデーション切り替え
     function toggleGradation(el) {
@@ -1561,53 +1544,45 @@
     }
 
     function start() {
-      const s = document.getElementById('inp-str').value;
+      const s = parseInt(document.getElementById('inp-str').value);
       const cnt = tgtCount;
       const preset = currentPresetName;
-
-      // グラデーション設定取得
       const isGrad = document.getElementById('chk-grad').checked;
-      let query = `/api/start?str=${s}&cnt=${cnt}&preset=${encodeURIComponent(preset)}`;
+
+      const msg = {
+        cmd: "start",
+        str: s,
+        cnt: cnt,
+        preset: preset,
+        grad_en: isGrad
+      };
 
       if (isGrad) {
-        const gStart = document.getElementById('inp-grad-start').value;
-        const gEnd = document.getElementById('inp-grad-end').value;
-        query += `&grad_start=${gStart}&grad_end=${gEnd}`;
-
-        // 完了画面用に保存
-        runStrength = `${gStart}→${gEnd}`;
+        msg.g_start = parseInt(document.getElementById('inp-grad-start').value);
+        msg.g_end = parseInt(document.getElementById('inp-grad-end').value);
+        runStrength = `${msg.g_start}→${msg.g_end}`;
       } else {
         runStrength = s;
       }
 
       isManualStop = false;
       isRunning = true;
-      isStarting = true; // Flag to prevent race condition
       document.body.classList.add('running');
       document.getElementById('status-badge').innerText = "準備中...";
-
-      lastStartAction = Date.now();
-      sessionStartTime = lastStartAction;
 
       runPreset = currentPresetName;
       runCount = cnt;
 
-      const h = parseFloat(document.getElementById('inp-hold').value) || 0.5;
-      const r = parseFloat(document.getElementById('inp-reach').value) || 0.5;
-      // 理論値に合わせて補正
-      sessionTotalDur = 0.3 + (tgtCount * (r + h + 0.5));
-      if (sessionTotalDur < 1) sessionTotalDur = 1;
-
-      // プリセット名も送信
-      // プリセット名も送信
-      fetch(query)
-        .then(() => setTimeout(() => isStarting = false, 5000)) // タイムアウト延長
-        .catch(() => { isStarting = false; });
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(msg));
+      }
     }
 
     function stop() {
       isManualStop = true;
-      fetch('/api/stop').catch(() => { });
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ cmd: "stop" }));
+      }
     }
 
     function setOnline(isOnline) {
@@ -1618,91 +1593,6 @@
       }
     }
 
-    // --- SMOOTH ANIMATION LOOP ---
-    function animateLoop() {
-      if (isRunning && sessionTotalDur > 0) {
-        const now = Date.now();
-        const elapsedSec = (now - sessionStartTime) / 1000;
-        const remaining = Math.max(0, sessionTotalDur - elapsedSec);
-
-        document.getElementById('time-display').innerText = fmtTime(Math.ceil(remaining));
-
-        let pct = (elapsedSec / sessionTotalDur) * 100;
-        if (pct < 0) pct = 0;
-        if (pct > 100) pct = 100;
-        document.getElementById('yt-fill').style.width = pct + "%";
-
-        // 残り時間が0になったら即座に完了処理 (UX優先)
-        if (remaining <= 0 && !isManualStop) {
-          finishSession();
-        }
-      }
-      requestAnimationFrame(animateLoop);
-    }
-    requestAnimationFrame(animateLoop);
-
-    // --- SYNC WITH SERVER (Adaptive Polling) ---
-    function syncStatus() {
-      fetch('/api/status')
-        .then(r => r.json())
-        .then(d => {
-          setOnline(true);
-
-          if (d.state !== 'IDLE') {
-            isStarting = false; // 状態遷移を確認したらフラグ解除
-
-            // Reset finished flag if we are running again (and not FINISHED_BLINK)
-            if (d.state !== 'FINISHED_BLINK') {
-              hasSessionFinished = false;
-            }
-
-            if (!isRunning) {
-              isRunning = true;
-              document.body.classList.add('running');
-              sessionStartTime = Date.now() - (d.elap || 0);
-            }
-            // サーバーからの所要時間で更新
-            if (d.dur && d.dur > 0) sessionTotalDur = d.dur;
-
-            // 詳細情報の同期 (完了画面用)
-            if (d.preset) runPreset = d.preset;
-            if (d.str) runStrength = d.str;
-            if (d.total) runCount = d.total;
-
-            let txt = "動作中";
-            if (d.state === 'PREPARE_SQUEEZE') txt = "準備中...";
-            if (d.state === 'SQUEEZING') txt = "握り中";
-            if (d.state === 'HOLDING') txt = "保持中";
-            if (d.state === 'RELEASING') txt = "解放中";
-            document.getElementById('status-badge').innerText = `${txt} (${d.cycle + 1}/${d.total})`;
-
-            sessionTotalDur = d.dur || 1;
-            const estimatedStart = Date.now() - (d.elap || 0);
-            if (Math.abs(estimatedStart - sessionStartTime) > 500) {
-              sessionStartTime = estimatedStart;
-            }
-
-          } else {
-            // IDLEに戻った = 動作完了
-            // FINISHED_BLINK状態も "IDLEではない" のでここには来ない = 完了画面は出ない
-            // FINISHED_BLINK -> IDLE に遷移した瞬間にここに来る
-            if (isRunning && !isStarting) {
-              finishSession();
-            }
-          }
-          lastStatus = d.state;
-        })
-        .catch(e => {
-          setOnline(false);
-        })
-        .finally(() => {
-          // 動作中は高速ポーリング(200ms), 待機中は低速(1000ms)
-          const nextInterval = (isRunning || isStarting) ? 200 : 1000;
-          setTimeout(syncStatus, nextInterval);
-        });
-    }
-    // Start Polling
-    syncStatus();
 
     function finishSession() {
       if (!isRunning) return; // 既に完了済みなら何もしない
@@ -1753,23 +1643,12 @@
     // 個別サーボ位置補正
     function updateServoOffset(servoNum, value) {
       document.getElementById(`servo${servoNum}-offset-disp`).innerText = value;
-      fetch(`/api/servo_offset?servo=${servoNum}&value=${value}`)
-        .then(r => r.text())
-        .then(d => console.log(`Servo ${servoNum} offset:`, value));
+      sendCmd("set_offset", { num: servoNum, val: parseInt(value) });
     }
 
-    // 初期化時に個別サーボオフセット読み込み
     function fetchServoOffsets() {
-      for (let i = 1; i <= 3; i++) {
-        fetch(`/api/servo_offset?servo=${i}`)
-          .then(r => r.json())
-          .then(data => {
-            const offset = data.offset || 0;
-            document.getElementById(`inp-servo${i}-offset`).value = offset;
-            document.getElementById(`servo${i}-offset-disp`).innerText = offset;
-          })
-          .catch(e => console.error(`Failed to fetch servo ${i} offset:`, e));
-      }
+      // init message already contains everything? 
+      // No, it didn't. I should update sendInit on backend.
     }
 
     // --- My Presets (LocalStorage) ---
@@ -1882,30 +1761,13 @@
 
     // 角度制限更新
     function updateServoLimit(servoNum) {
-      const minVal = document.getElementById(`min-angle-${servoNum}`).value;
-      const maxVal = document.getElementById(`max-angle-${servoNum}`).value;
-
-      if (parseInt(minVal) > parseInt(maxVal)) {
-        // 最小値が最大値を超えないように
-        return;
-      }
-
-      fetch(`/api/servo_limit?servo=${servoNum}&min=${minVal}&max=${maxVal}`)
-        .then(r => r.text())
-        .then(d => console.log(`Servo ${servoNum} limit updated: ${minVal}-${maxVal}`));
+      const minVal = parseInt(document.getElementById(`min-angle-${servoNum}`).value);
+      const maxVal = parseInt(document.getElementById(`max-angle-${servoNum}`).value);
+      if (minVal > maxVal) return;
+      sendCmd("set_limit", { num: servoNum, min: minVal, max: maxVal });
     }
 
-    // 角度制限読み込み
-    function fetchServoLimits() {
-      for (let i = 1; i <= 3; i++) {
-        fetch(`/api/servo_limit?servo=${i}`)
-          .then(r => r.json())
-          .then(d => {
-            document.getElementById(`min-angle-${i}`).value = d.min;
-            document.getElementById(`max-angle-${i}`).value = d.max;
-          });
-      }
-    }
+    function fetchServoLimits() { }
 
 
   </script>

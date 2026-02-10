@@ -13,8 +13,10 @@
 // --- LittleFS for serving HTML ---
 #include <ArduinoJson.h>
 #include <LittleFS.h>
+#include <WebSocketsServer.h>
 
 WebServer server(80);
+WebSocketsServer webSocket(81);
 DNSServer dnsServer;
 const byte DNS_PORT = 53;
 Preferences preferences;
@@ -310,124 +312,14 @@ float measureDistance() {
   return readings[1];
 }
 
-// API: Start
-void handleApiStart() {
-  if (server.hasArg("str"))
-    targetStrength = server.arg("str").toInt();
-  if (server.hasArg("cnt"))
-    targetCount = server.arg("cnt").toInt();
-  if (server.hasArg("preset"))
-    currentSessionPreset = server.arg("preset");
-  else
-    currentSessionPreset = "カスタム";
-
-  // ★追加: グラデーション設定の読み取り
-  if (server.hasArg("grad_start") && server.hasArg("grad_end")) {
-    gradationEnabled = true;
-    gradationStart = server.arg("grad_start").toInt();
-    gradationEnd = server.arg("grad_end").toInt();
-
-    // 範囲制限
-    if (gradationStart < 0)
-      gradationStart = 0;
-    if (gradationStart > 100)
-      gradationStart = 100;
-    if (gradationEnd < 0)
-      gradationEnd = 0;
-    if (gradationEnd > 100)
-      gradationEnd = 100;
-
-    Serial.printf("[API] Start Gradation: %d%% -> %d%%\n", gradationStart,
-                  gradationEnd);
-  } else {
-    gradationEnabled = false; // パラメータがない場合は無効化
-  }
-
-  if (targetStrength > 100)
-    targetStrength = 100;
-  if (targetStrength < 0)
-    targetStrength = 0;
-
-  // Persist current selection
-  preferences.putInt("str", targetStrength);
-  preferences.putInt("cnt", targetCount);
-
-  Serial.printf("[API] Start: Str=%d%%, Cnt=%d, Preset=%s\n", targetStrength,
-                targetCount, currentSessionPreset.c_str());
-
-  currentCycle = 0;
-  sessionStartTime = millis();
-  currentState = PREPARE_SQUEEZE;
-
-  server.send(200, "text/plain", "OK");
-}
-
-void handleApiStop() {
-  Serial.println("[API] Stop");
-  currentState = IDLE;
-  attachAllServos();
-  setAllServosAngle(270);
-  server.send(200, "text/plain", "OK");
-}
-
-void handleApiSettings() {
-  if (server.hasArg("led_cnt")) {
-    int cnt = server.arg("led_cnt").toInt();
-    if (cnt < 1)
-      cnt = 1;
-    if (cnt > 35)
-      cnt = 35;
-    activeLedCount = cnt;
-    preferences.putInt("led_cnt", activeLedCount);
-    Serial.printf("[API] LED Count: %d\n", activeLedCount);
-  }
-  if (server.hasArg("hold")) {
-    holdTimeSec = server.arg("hold").toFloat();
-    preferences.putFloat("hold", holdTimeSec);
-  }
-  if (server.hasArg("reach")) {
-    reachTimeSec = server.arg("reach").toFloat();
-    preferences.putFloat("reach", reachTimeSec);
-  }
-  if (server.hasArg("str")) {
-    targetStrength = server.arg("str").toInt();
-    preferences.putInt("str", targetStrength);
-  }
-  if (server.hasArg("cnt")) {
-    targetCount = server.arg("cnt").toInt();
-    preferences.putInt("cnt", targetCount);
-  }
-  if (server.hasArg("sth")) {
-    sensorThreshold = server.arg("sth").toFloat();
-    preferences.putFloat("sth", sensorThreshold);
-  }
+// --- WebSocket logic ---
+void broadcastStatus() {
+  static unsigned long lastBroadcast = 0;
+  if (millis() - lastBroadcast < 200)
+    return;
+  lastBroadcast = millis();
 
   JsonDocument doc;
-  doc["hold"] = holdTimeSec;
-  doc["reach"] = reachTimeSec;
-  doc["pin13"] = pin13State;
-  doc["sensor"] = sensorEnabled;
-  doc["sth"] = sensorThreshold;
-  doc["str"] = targetStrength;
-  doc["cnt"] = targetCount;
-  doc["led_cnt"] = activeLedCount;
-  doc["build"] = "2026-02-05 16:51";
-
-  String output;
-  serializeJson(doc, output);
-  server.send(200, "application/json", output);
-}
-
-void handleApiPin13() {
-  if (server.hasArg("val")) {
-    pin13State = server.arg("val").toInt();
-    digitalWrite(13, pin13State ? HIGH : LOW);
-    preferences.putInt("pin13", pin13State);
-  }
-  server.send(200, "text/plain", "OK");
-}
-
-void handleApiStatus() {
   const char *stateStr;
   switch (currentState) {
   case IDLE:
@@ -457,268 +349,214 @@ void handleApiStatus() {
 
   float cycleDur = reachTimeSec + holdTimeSec + 0.5;
   float totalDur = 0.3 + (targetCount * cycleDur);
+  unsigned long elap =
+      (currentState == IDLE) ? 0 : (millis() - sessionStartTime);
+  float progress = (float)elap / (totalDur * 1000.0);
+  if (progress > 1.0)
+    progress = 1.0;
 
-  JsonDocument doc;
+  doc["type"] = "status";
   doc["state"] = stateStr;
   doc["cycle"] = currentCycle;
   doc["total"] = targetCount;
-  doc["elap"] = millis() - sessionStartTime;
-  doc["pin13"] = pin13State;
-  doc["dur"] = totalDur;
-  doc["preset"] = currentSessionPreset;
-  doc["str"] = targetStrength;
+  doc["prog"] = (int)(progress * 100);
+  doc["rem"] = (totalDur > (elap / 1000.0)) ? (totalDur - (elap / 1000.0)) : 0;
 
   String output;
   serializeJson(doc, output);
-  server.send(200, "application/json", output);
+  webSocket.broadcastTXT(output);
 }
 
-void handleApiManual() {
-  if (server.hasArg("val")) {
-    int pct = server.arg("val").toInt();
-    if (pct < 0)
-      pct = 0;
-    if (pct > 100)
-      pct = 100;
-
-    int targetAngle = strengthToAngle(pct);
-
-    currentState = IDLE;
-    stateStartTime =
-        millis(); // Reset idle timer so it doesn't detach immediately
-    attachAllServos();
-    setAllServosAngle(targetAngle);
-
-    Serial.printf("[API] Manual: %d%% -> %d deg\n", pct, targetAngle);
-  }
-  server.send(200, "text/plain", "OK");
-}
-
-void handleApiManualAngle() {
-  if (server.hasArg("angle")) {
-    int angle = server.arg("angle").toInt();
-    // 90度～270度の範囲に制限
-    if (angle < 90)
-      angle = 90;
-    if (angle > 270)
-      angle = 270;
-
-    currentState = IDLE;
-    stateStartTime = millis();
-    attachAllServos();
-    setAllServosAngle(angle);
-
-    Serial.printf("[API] Manual Angle: %d degrees\n", angle);
-  }
-  server.send(200, "text/plain", "OK");
-}
-
-void handleApiServoAll() {
-  if (server.hasArg("angle")) {
-    int angle = server.arg("angle").toInt();
-    if (angle < 90)
-      angle = 90;
-    if (angle > 270)
-      angle = 270;
-
-    currentState = IDLE;
-    stateStartTime = millis();
-    attachAllServos();
-    setAllServosAngle(angle);
-
-    Serial.printf("[API] All Servos: %d degrees\n", angle);
-  }
-  server.send(200, "text/plain", "OK");
-}
-
-void handleApiServoIndividual() {
-  if (server.hasArg("servo") && server.hasArg("angle")) {
-    int servoNum = server.arg("servo").toInt();
-    int angle = server.arg("angle").toInt();
-    // 範囲チェックは setServoAngleSafe
-    // 内で行われるため簡易チェックのみ、または省略可だが一応残す if (angle <
-    // 90) angle = 90; //
-    // 制限は個別のmin/maxに委ねるべきか？安全のためsetServoAngleSafeにお任せする
-
-    currentState = IDLE;
-    stateStartTime = millis();
-
-    setServoAngleSafe(servoNum, angle);
-
-    Serial.printf("[API] Servo %d: %d degrees\n", servoNum, angle);
-  }
-  server.send(200, "text/plain", "OK");
-}
-
-void handleApiHistory() {
+void sendInit(uint8_t num) {
   JsonDocument doc;
-  JsonArray arr = doc.to<JsonArray>();
+  doc["type"] = "init";
+  doc["str"] = targetStrength;
+  doc["cnt"] = targetCount;
+  doc["hold"] = holdTimeSec;
+  doc["reach"] = reachTimeSec;
+  doc["grad_en"] = gradationEnabled;
+  doc["g_start"] = gradationStart;
+  doc["g_end"] = gradationEnd;
+  doc["sensor"] = sensorEnabled;
+  doc["sth"] = sensorThreshold;
+  doc["led_cnt"] = activeLedCount;
+  doc["preset"] = currentSessionPreset;
+  doc["build"] = "2026-02-10 16:30";
 
-  for (const auto &h : historyLog) {
-    JsonObject item = arr.add<JsonObject>();
-    item["time"] = h.timeStr;
-    item["preset"] = h.preset;
-    item["strength"] = h.strength;
-    item["count"] = h.count;
-  }
+  doc["off1"] = servo1Offset;
+  doc["off2"] = servo2Offset;
+  doc["off3"] = servo3Offset;
+  doc["min1"] = minAngle1;
+  doc["max1"] = maxAngle1;
+  doc["min2"] = minAngle2;
+  doc["max2"] = maxAngle2;
+  doc["min3"] = minAngle3;
+  doc["max3"] = maxAngle3;
 
   String output;
   serializeJson(doc, output);
-  server.send(200, "application/json", output);
+  webSocket.sendTXT(num, output);
 }
 
-void handleApiServoOffset() {
-  if (server.hasArg("servo") && server.hasArg("value")) {
-    int servoNum = server.arg("servo").toInt();
-    int value = server.arg("value").toInt();
-    if (value >= -90 && value <= 90 && servoNum >= 1 && servoNum <= 3) {
-      int correctedAngle = 270 - value;
-      if (correctedAngle < 0)
-        correctedAngle = 0;
-      if (correctedAngle > 270)
-        correctedAngle = 270;
-      int us = map(correctedAngle, 0, 270, US_AT_0_DEG, US_AT_270_DEG);
+void onWebSocketEvent(uint8_t num, WStype_t type, uint8_t *payload,
+                      size_t length) {
+  switch (type) {
+  case WStype_DISCONNECTED:
+    Serial.printf("[%u] Disconnected!\n", num);
+    break;
+  case WStype_CONNECTED: {
+    IPAddress ip = webSocket.remoteIP(num);
+    Serial.printf("[%u] Connected from %d.%d.%d.%d\n", num, ip[0], ip[1], ip[2],
+                  ip[3]);
+    sendInit(num);
+  } break;
+  case WStype_TEXT: {
+    JsonDocument doc;
+    DeserializationError error = deserializeJson(doc, payload);
+    if (error)
+      return;
 
-      if (servoNum == 1) {
-        servo1Offset = value;
-        preferences.putInt("servo1Off", value);
-        if (!servo1.attached())
-          servo1.attach(PIN_SERVO1, US_AT_0_DEG, US_AT_270_DEG);
-        servo1.writeMicroseconds(us);
-      } else if (servoNum == 2) {
-        servo2Offset = value;
-        preferences.putInt("servo2Off", value);
-        if (!servo2.attached())
-          servo2.attach(PIN_SERVO2, US_AT_0_DEG, US_AT_270_DEG);
-        servo2.writeMicroseconds(us);
-      } else if (servoNum == 3) {
-        servo3Offset = value;
-        preferences.putInt("servo3Off", value);
-        if (!servo3.attached())
-          servo3.attach(PIN_SERVO3, US_AT_0_DEG, US_AT_270_DEG);
-        servo3.writeMicroseconds(us);
+    String cmd = doc["cmd"] | "";
+    if (cmd == "start") {
+      targetStrength = doc["str"] | targetStrength;
+      targetCount = doc["cnt"] | targetCount;
+      currentSessionPreset = doc["preset"] | "カスタム";
+      gradationEnabled = doc["grad_en"] | false;
+      gradationStart = doc["g_start"] | gradationStart;
+      gradationEnd = doc["g_end"] | gradationEnd;
+
+      preferences.putInt("str", targetStrength);
+      preferences.putInt("cnt", targetCount);
+
+      currentCycle = 0;
+      sessionStartTime = millis();
+      currentState = PREPARE_SQUEEZE;
+      Serial.println("WS Start");
+    } else if (cmd == "stop") {
+      currentState = IDLE;
+      attachAllServos();
+      setAllServosAngle(270);
+      Serial.println("WS Stop");
+    } else if (cmd == "set") {
+      if (doc.containsKey("hold")) {
+        holdTimeSec = doc["hold"];
+        preferences.putFloat("hold", holdTimeSec);
       }
-      Serial.printf("[API] Servo %d Offset: %d\n", servoNum, value);
-      server.send(200, "text/plain", "OK");
-    } else {
-      server.send(400, "text/plain", "Error: servo 1-3, value -90~+90");
-    }
-  } else if (server.hasArg("servo")) {
-    int servoNum = server.arg("servo").toInt();
-    int offset = 0;
-    if (servoNum == 1)
-      offset = servo1Offset;
-    else if (servoNum == 2)
-      offset = servo2Offset;
-    else if (servoNum == 3)
-      offset = servo3Offset;
-    String json = "{\"offset\":" + String(offset) + "}";
-    server.send(200, "application/json", json);
-  } else {
-    server.send(400, "text/plain", "Missing servo parameter");
-  }
-}
-
-void handleApiServoLimit() {
-  if (server.hasArg("servo")) {
-    int servoNum = server.arg("servo").toInt();
-    if (server.hasArg("min") && server.hasArg("max")) {
-      int minV = server.arg("min").toInt();
-      int maxV = server.arg("max").toInt();
-      if (minV < 0)
-        minV = 0;
-      if (maxV > 270)
-        maxV = 270;
-
-      if (servoNum == 1) {
-        minAngle1 = minV;
-        maxAngle1 = maxV;
-        preferences.putInt("minAng1", minV);
-        preferences.putInt("maxAng1", maxV);
-      } else if (servoNum == 2) {
-        minAngle2 = minV;
-        maxAngle2 = maxV;
-        preferences.putInt("minAng2", minV);
-        preferences.putInt("maxAng2", maxV);
-      } else if (servoNum == 3) {
-        minAngle3 = minV;
-        maxAngle3 = maxV;
-        preferences.putInt("minAng3", minV);
-        preferences.putInt("maxAng3", maxV);
+      if (doc.containsKey("reach")) {
+        reachTimeSec = doc["reach"];
+        preferences.putFloat("reach", reachTimeSec);
       }
-      server.send(200, "text/plain", "OK");
-    } else {
-      int minV = 0, maxV = 270;
-      if (servoNum == 1) {
-        minV = minAngle1;
-        maxV = maxAngle1;
-      } else if (servoNum == 2) {
-        minV = minAngle2;
-        maxV = maxAngle2;
-      } else if (servoNum == 3) {
-        minV = minAngle3;
-        maxV = maxAngle3;
+      if (doc.containsKey("sth")) {
+        sensorThreshold = doc["sth"];
+        preferences.putFloat("sth", sensorThreshold);
       }
-
-      String json =
-          "{\"min\":" + String(minV) + ",\"max\":" + String(maxV) + "}";
-      server.send(200, "application/json", json);
-    }
-  } else {
-    server.send(400, "text/plain", "Missing servo param");
-  }
-}
-
-void handleApiLed() {
-  int r = 0, g = 0, b = 0;
-  if (server.hasArg("color")) {
-    String hex = server.arg("color");
-    if (hex.startsWith("#"))
-      hex = hex.substring(1);
-    long number = strtol(hex.c_str(), NULL, 16);
-    r = (number >> 16) & 0xFF;
-    g = (number >> 8) & 0xFF;
-    b = number & 0xFF;
-  } else if (server.hasArg("r") && server.hasArg("g") && server.hasArg("b")) {
-    r = server.arg("r").toInt();
-    g = server.arg("g").toInt();
-    b = server.arg("b").toInt();
-  }
-
-  ledManualMode = true; // Switch to manual mode
-  currentLedColor = pixels.Color(r, g, b);
-  updateLed(currentLedColor);
-
-  Serial.printf("[API] LED Manual: R%d G%d B%d\n", r, g, b);
-  server.send(200, "text/plain", "OK");
-}
-
-void handleApiLedMode() {
-  if (server.hasArg("mode")) {
-    String m = server.arg("mode");
-    if (m == "auto") {
-      ledManualMode = false;
-      Serial.println("[API] LED Mode: Auto");
-    } else {
+      if (doc.containsKey("sensor")) {
+        sensorEnabled = doc["sensor"];
+        preferences.putBool("sensor", sensorEnabled);
+      }
+      if (doc.containsKey("led_cnt")) {
+        activeLedCount = doc["led_cnt"];
+        preferences.putInt("led_cnt", activeLedCount);
+      }
+      Serial.println("WS Set");
+    } else if (cmd == "manual") {
+      int pct = doc["val"] | 0;
+      int targetAngle = strengthToAngle(pct);
+      currentState = IDLE;
+      stateStartTime = millis();
+      attachAllServos();
+      setAllServosAngle(targetAngle);
+      Serial.printf("WS Manual: %d%%\n", pct);
+    } else if (cmd == "led_mode") {
+      ledManualMode = !(doc["auto"] | true);
+      Serial.printf("WS LED Mode: %s\n", ledManualMode ? "Manual" : "Auto");
+    } else if (cmd == "led_color") {
       ledManualMode = true;
-      Serial.println("[API] LED Mode: Manual");
+      if (doc.containsKey("hex")) {
+        String hex = doc["hex"].as<String>();
+        if (hex.startsWith("#"))
+          hex = hex.substring(1);
+        long n = strtol(hex.c_str(), NULL, 16);
+        currentLedColor =
+            pixels.Color((n >> 16) & 0xFF, (n >> 8) & 0xFF, n & 0xFF);
+      } else {
+        currentLedColor =
+            pixels.Color(doc["r"] | 0, doc["g"] | 0, doc["b"] | 0);
+      }
+      updateLed(currentLedColor);
+    } else if (cmd == "get_history") {
+      JsonDocument hdoc;
+      hdoc["type"] = "history";
+      JsonArray arr = hdoc["data"].to<JsonArray>();
+      for (const auto &h : historyLog) {
+        JsonObject item = arr.add<JsonObject>();
+        item["time"] = h.timeStr;
+        item["preset"] = h.preset;
+        item["strength"] = h.strength;
+        item["count"] = h.count;
+      }
+      String output;
+      serializeJson(hdoc, output);
+      webSocket.sendTXT(num, output);
+    } else if (cmd == "set_offset") {
+      int s = doc["num"] | 0;
+      int v = doc["val"] | 0;
+      if (s >= 1 && s <= 3) {
+        if (s == 1) {
+          servo1Offset = v;
+          preferences.putInt("servo1Off", v);
+        } else if (s == 2) {
+          servo2Offset = v;
+          preferences.putInt("servo2Off", v);
+        } else if (s == 3) {
+          servo3Offset = v;
+          preferences.putInt("servo3Off", v);
+        }
+        int correctedAngle = 270 - v;
+        if (correctedAngle < 0)
+          correctedAngle = 0;
+        if (correctedAngle > 270)
+          correctedAngle = 270;
+        int us = map(correctedAngle, 0, 270, US_AT_0_DEG, US_AT_270_DEG);
+        if (s == 1) {
+          if (!servo1.attached())
+            servo1.attach(PIN_SERVO1, US_AT_0_DEG, US_AT_270_DEG);
+          servo1.writeMicroseconds(us);
+        } else if (s == 2) {
+          if (!servo2.attached())
+            servo2.attach(PIN_SERVO2, US_AT_0_DEG, US_AT_270_DEG);
+          servo2.writeMicroseconds(us);
+        } else if (s == 3) {
+          if (!servo3.attached())
+            servo3.attach(PIN_SERVO3, US_AT_0_DEG, US_AT_270_DEG);
+          servo3.writeMicroseconds(us);
+        }
+      }
+    } else if (cmd == "set_limit") {
+      int s = doc["num"] | 0;
+      int mi = doc["min"] | 0;
+      int ma = doc["max"] | 270;
+      if (s == 1) {
+        minAngle1 = mi;
+        maxAngle1 = ma;
+        preferences.putInt("minAng1", mi);
+        preferences.putInt("maxAng1", ma);
+      } else if (s == 2) {
+        minAngle2 = mi;
+        maxAngle2 = ma;
+        preferences.putInt("minAng2", mi);
+        preferences.putInt("maxAng2", ma);
+      } else if (s == 3) {
+        minAngle3 = mi;
+        maxAngle3 = ma;
+        preferences.putInt("minAng3", mi);
+        preferences.putInt("maxAng3", ma);
+      }
     }
+  } break;
+  default:
+    break;
   }
-  server.send(200, "text/plain", "OK");
-}
-
-void handleApiSensorMode() {
-  if (server.hasArg("val")) {
-    sensorEnabled = (server.arg("val").toInt() == 1);
-    preferences.putBool("sensor", sensorEnabled);
-    Serial.printf("[API] Sensor Mode: %s\n", sensorEnabled ? "ON" : "OFF");
-  }
-  server.send(200, "text/plain", "OK");
-}
-
-void handleApiDistance() {
-  String json = "{\"distance\":" + String(currentDistance, 1) + "}";
-  server.send(200, "application/json", json);
 }
 
 void handleRoot() {
@@ -808,26 +646,14 @@ void setup() {
   dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
 
   server.on("/", handleRoot);
-  server.on("/api/status", handleApiStatus);
-  server.on("/api/start", handleApiStart);
-  server.on("/api/stop", handleApiStop);
-  server.on("/api/settings", handleApiSettings);
-  // server.on("/api/pin13", handleApiPin13);
-  server.on("/api/manual", handleApiManual);
-  server.on("/api/manual_angle", handleApiManualAngle);
-  server.on("/api/servo_all", handleApiServoAll);
-  server.on("/api/servo_individual", handleApiServoIndividual);
-  server.on("/api/history", handleApiHistory);
-  server.on("/api/servo_offset", handleApiServoOffset);
-  server.on("/api/servo_limit", handleApiServoLimit);
-  server.on("/api/sensor_mode", handleApiSensorMode);
-
-  server.on("/api/distance", handleApiDistance);
-  server.on("/api/led", handleApiLed);
-  server.on("/api/led_mode", handleApiLedMode);
+  // WebSocket handle (not needed for arduinoWebSockets as it's a separate
+  // server)
 
   // Captive Portal Redirect
   server.onNotFound([]() { handleRoot(); });
+
+  webSocket.begin();
+  webSocket.onEvent(onWebSocketEvent);
 
   server.begin();
   Serial.println("Ready.");
@@ -836,6 +662,11 @@ void setup() {
 void loop() {
   dnsServer.processNextRequest();
   server.handleClient();
+  webSocket.loop();
+
+  if (currentState != IDLE) {
+    broadcastStatus();
+  }
 
   unsigned long now = millis();
 
