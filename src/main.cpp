@@ -372,17 +372,16 @@ void sendInit(uint8_t num) {
   doc["type"] = "init";
   doc["str"] = targetStrength;
   doc["cnt"] = targetCount;
+  doc["preset"] = currentSessionPreset;
   doc["hold"] = holdTimeSec;
   doc["reach"] = reachTimeSec;
   doc["grad_en"] = gradationEnabled;
   doc["g_start"] = gradationStart;
   doc["g_end"] = gradationEnd;
-  doc["sensor"] = sensorEnabled;
-  doc["sth"] = sensorThreshold;
   doc["led_cnt"] = activeLedCount;
-  doc["preset"] = currentSessionPreset;
-  doc["build"] = "2026-02-10 16:30";
+  doc["build"] = "2026-02-10 16:10";
 
+  // Optional: Calibration data
   doc["off1"] = servo1Offset;
   doc["off2"] = servo2Offset;
   doc["off3"] = servo3Offset;
@@ -552,6 +551,31 @@ void onWebSocketEvent(uint8_t num, WStype_t type, uint8_t *payload,
         preferences.putInt("minAng3", mi);
         preferences.putInt("maxAng3", ma);
       }
+    } else if (cmd == "servo_all") {
+      int angle = doc["angle"] | 270;
+      attachAllServos();
+      setAllServosAngle(angle);
+      Serial.printf("WS Servo All: %d\n", angle);
+    } else if (cmd == "servo_individual") {
+      int s = doc["num"] | 0;
+      int angle = doc["angle"] | 270;
+      if (s == 1) {
+        if (!servo1.attached())
+          servo1.attach(PIN_SERVO1, US_AT_0_DEG, US_AT_270_DEG);
+        servo1.writeMicroseconds(
+            map(angle, 0, 270, US_AT_0_DEG, US_AT_270_DEG));
+      } else if (s == 2) {
+        if (!servo2.attached())
+          servo2.attach(PIN_SERVO2, US_AT_0_DEG, US_AT_270_DEG);
+        servo2.writeMicroseconds(
+            map(angle, 0, 270, US_AT_0_DEG, US_AT_270_DEG));
+      } else if (s == 3) {
+        if (!servo3.attached())
+          servo3.attach(PIN_SERVO3, US_AT_0_DEG, US_AT_270_DEG);
+        servo3.writeMicroseconds(
+            map(angle, 0, 270, US_AT_0_DEG, US_AT_270_DEG));
+      }
+      Serial.printf("WS Servo %d: %d\n", s, angle);
     }
   } break;
   default:

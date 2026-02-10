@@ -1304,65 +1304,61 @@
     }
 
     function handleInit(d) {
-      const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+      const setInp = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
       const setChecked = (id, val) => { const el = document.getElementById(id); if (el) el.checked = (val == 1 || val === true); };
       const setText = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
 
-      if (d.hold) setVal('inp-hold', d.hold);
-      if (d.reach) setVal('inp-reach', d.reach);
-      if (d.sensor !== undefined) {
-        setChecked('chk-sensor', d.sensor);
-        updSensorLbl(d.sensor);
+      if (d.hold) setInp('inp-hold', d.hold);
+      if (d.reach) setInp('inp-reach', d.reach);
+      if (d.str) {
+        setInp('inp-str', d.str);
+        updVal('str-disp', d.str, '%');
       }
-      if (d.sth) {
-        setVal('inp-sth', d.sth);
-        setText('sth-disp', d.sth);
-      }
-      if (d.build) setText('build-disp', d.build);
       if (d.led_cnt !== undefined) {
-        setVal('inp-led-cnt', d.led_cnt);
+        setInp('inp-led-cnt', d.led_cnt);
         setText('led-cnt-disp', d.led_cnt);
+      }
+
+      tgtCount = d.cnt || 3;
+      currentPresetName = d.preset || "カスタム";
+
+      const isGrad = !!d.grad_en;
+      const chkGrad = document.getElementById('chk-grad');
+      if (chkGrad) {
+        chkGrad.checked = isGrad;
+        toggleGradation(chkGrad);
+      }
+      if (d.g_start) setInp('inp-grad-start', d.g_start);
+      if (d.g_end) {
+        setInp('inp-grad-end', d.g_end);
+        setText('grad-end-disp', d.g_end + '%');
       }
 
       // Calibration data
       for (let i = 1; i <= 3; i++) {
         if (d[`off${i}`] !== undefined) {
-          setVal(`inp-servo${i}-offset`, d[`off${i}`]);
+          setInp(`inp-servo${i}-offset`, d[`off${i}`]);
           setText(`servo${i}-offset-disp`, d[`off${i}`]);
         }
-        if (d[`min${i}`] !== undefined) setVal(`min-angle-${i}`, d[`min${i}`]);
-        if (d[`max${i}`] !== undefined) setVal(`max-angle-${i}`, d[`max${i}`]);
+        if (d[`min${i}`] !== undefined) setInp(`min-angle-${i}`, d[`min${i}`]);
+        if (d[`max${i}`] !== undefined) setInp(`max-angle-${i}`, d[`max${i}`]);
       }
 
-      setVal('inp-str', d.str);
-      updVal('str-disp', d.str, '%');
-      tgtCount = d.cnt;
-
-      const isGrad = !!d.grad_en;
-      document.getElementById('chk-grad').checked = isGrad;
-      toggleGradation({ checked: isGrad });
-      if (d.g_start) setVal('inp-grad-start', d.g_start);
-      if (d.g_end) {
-        setVal('inp-grad-end', d.g_end);
-        setText('grad-end-disp', d.g_end + '%');
-      }
-
-      // Preset activation
-      document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-      if (d.preset) {
-        currentPresetName = d.preset;
-        const btn = document.querySelector(`.preset-btn[data-name="${d.preset}"]`);
-        if (btn) btn.classList.add('active');
-      }
+      // Preset UI activation
+      document.querySelectorAll('.preset-btn').forEach(b => {
+        b.classList.toggle('active', b.getAttribute('data-name') === currentPresetName);
+      });
 
       // Count button activation
       document.querySelectorAll('.chk-btn').forEach(b => {
-        if (parseInt(b.innerText.trim()) === d.cnt) b.classList.add('active');
-        else b.classList.remove('active');
+        const val = parseInt(b.innerText.trim());
+        b.classList.toggle('active', val === tgtCount);
       });
 
       updTimeDisp();
       renderMyPresets();
+
+      // FINAL STEP: Show UI
       document.body.classList.add('ready');
     }
 
@@ -1632,12 +1628,12 @@
         const el = document.getElementById('inp-servo-' + i);
         if (el) el.value = angle;
       }
-      fetch(`/api/servo_all?angle=${angle}`);
+      sendCmd("servo_all", { angle: parseInt(angle) });
     }
 
     function setServo(servoNum, angle) {
       document.getElementById(`servo${servoNum}-val`).innerText = angle + '°';
-      fetch(`/api/servo_individual?servo=${servoNum}&angle=${angle}`);
+      sendCmd("servo_individual", { num: parseInt(servoNum), angle: parseInt(angle) });
     }
 
     // 個別サーボ位置補正
