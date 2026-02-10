@@ -172,6 +172,12 @@ float reachTimeSec = 0.5;
 
 int targetStrength = 90; // Default to Normal (v2.6+)
 int targetCount = 3;
+
+// ★追加: グラデーション用変数
+bool gradationEnabled = false;
+int gradationStart = 50;
+int gradationEnd = 100;
+
 int currentCycle = 0;
 int pin13State = 0;
 int activeLedCount = 35;
@@ -315,6 +321,28 @@ void handleApiStart() {
   else
     currentSessionPreset = "カスタム";
 
+  // ★追加: グラデーション設定の読み取り
+  if (server.hasArg("grad_start") && server.hasArg("grad_end")) {
+    gradationEnabled = true;
+    gradationStart = server.arg("grad_start").toInt();
+    gradationEnd = server.arg("grad_end").toInt();
+
+    // 範囲制限
+    if (gradationStart < 0)
+      gradationStart = 0;
+    if (gradationStart > 100)
+      gradationStart = 100;
+    if (gradationEnd < 0)
+      gradationEnd = 0;
+    if (gradationEnd > 100)
+      gradationEnd = 100;
+
+    Serial.printf("[API] Start Gradation: %d%% -> %d%%\n", gradationStart,
+                  gradationEnd);
+  } else {
+    gradationEnabled = false; // パラメータがない場合は無効化
+  }
+
   if (targetStrength > 100)
     targetStrength = 100;
   if (targetStrength < 0)
@@ -383,7 +411,7 @@ void handleApiSettings() {
   doc["str"] = targetStrength;
   doc["cnt"] = targetCount;
   doc["led_cnt"] = activeLedCount;
-  doc["build"] = __DATE__ " " __TIME__;
+  doc["build"] = "2026-02-05 16:51";
 
   String output;
   serializeJson(doc, output);
@@ -961,7 +989,25 @@ void loop() {
     unsigned long duration = reachTimeSec * 1000;
     unsigned long elapsed = now - stateStartTime;
     int startAngle = 270;
-    int targetAngle = strengthToAngle(targetStrength);
+
+    // ★変更: 今回のサイクルの目標強度を計算
+    int currentTargetStr = targetStrength; // デフォルトは固定強度
+
+    if (gradationEnabled) {
+      if (targetCount > 1) {
+        // 線形補間: 開始値 + (終了値 - 開始値) * (現在の回数 / (総回数 - 1))
+        // currentCycleは0から始まります (0, 1, 2...)
+        float progress = (float)currentCycle / (float)(targetCount - 1);
+        currentTargetStr =
+            gradationStart + (int)((gradationEnd - gradationStart) * progress);
+      } else {
+        // 1回だけの場合は終了値を使う
+        currentTargetStr = gradationEnd;
+      }
+    }
+
+    // 計算した強度を角度に変換
+    int targetAngle = strengthToAngle(currentTargetStr);
 
     if (elapsed >= duration) {
       setAllServosAngle(targetAngle);

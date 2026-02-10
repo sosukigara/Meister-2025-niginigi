@@ -742,9 +742,10 @@
       transform: translateX(-50%) translateY(0);
     }
 
-    to {
-      opacity: 1;
-    }
+    @keyframes fadeIn {
+      to {
+        opacity: 1;
+      }
     }
 
     @keyframes scaleIn {
@@ -787,6 +788,21 @@
         font-size: 1.1rem;
       }
     }
+
+    /* グラデーションモード時のUI変化用 */
+    .grad-mode .single-slider {
+      display: none;
+    }
+
+    .grad-mode .grad-slider {
+      display: flex;
+    }
+
+    .grad-slider {
+      display: none;
+      gap: 10px;
+      align-items: center;
+    }
   </style>
 </head>
 
@@ -798,7 +814,7 @@
       <div style="display:flex; align-items:center; gap:8px;">
         <div class="conn-dot" id="conn-dot"></div>
         <h1 style="line-height:1; margin:0;">にぎにぎ</h1>
-        <span style="font-size:0.75rem; color:var(--text-sub); font-family:monospace; padding-top:4px;">v2.3</span>
+        <span style="font-size:0.75rem; color:var(--text-sub); font-family:monospace; padding-top:4px;">v2.7</span>
       </div>
 
       <!-- Sensor Control -->
@@ -850,13 +866,44 @@
 
     <!-- 3. Settings (Basic) -->
     <div class="card card-settings">
-      <div class="setting-item">
+      <div class="setting-item" style="padding-bottom: 0; border-bottom: none;">
         <div class="s-header">
           <span class="s-label">握りの強さ</span>
-          <span class="s-val" id="str-disp">50%</span>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:0.8rem; color:var(--text-sub);">グラデーション</span>
+            <label class="switch" style="transform:scale(0.8);">
+              <input type="checkbox" id="chk-grad" onchange="toggleGradation(this)">
+              <span class="slider round"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="setting-item single-slider" id="ui-normal-str">
+        <div class="s-header" style="margin-top:0;">
+          <span class="s-val" id="str-disp" style="margin-left:auto;">50%</span>
         </div>
         <input type="range" id="inp-str" min="0" max="100" value="50"
           oninput="clearPresetUI(); updVal('str-disp', this.value, '%')" onchange="saveStr(this.value)">
+      </div>
+
+      <div class="setting-item grad-slider" id="ui-grad-str" style="display:none; flex-direction:column;">
+        <div style="width:100%; margin-bottom:10px;">
+          <div class="s-header" style="margin:0 0 4px 0;">
+            <span style="font-size:0.85rem; color:var(--text-sub);">開始</span>
+            <span class="s-val" id="grad-start-disp">30%</span>
+          </div>
+          <input type="range" id="inp-grad-start" min="0" max="100" value="30"
+            oninput="document.getElementById('grad-start-disp').innerText = this.value + '%'">
+        </div>
+        <div style="width:100%;">
+          <div class="s-header" style="margin:0 0 4px 0;">
+            <span style="font-size:0.85rem; color:var(--text-sub);">終了</span>
+            <span class="s-val" id="grad-end-disp">100%</span>
+          </div>
+          <input type="range" id="inp-grad-end" min="0" max="100" value="100"
+            oninput="document.getElementById('grad-end-disp').innerText = this.value + '%'">
+        </div>
       </div>
 
       <div class="setting-item"
@@ -897,7 +944,7 @@
       <div class="setting-item">
         <span class="s-label">システム情報</span>
         <div style="margin-top:8px; font-size:0.9rem; color:var(--text-sub);">
-          <div>Version: <span style="font-family:monospace;">2.3</span></div>
+          <div>Version: <span style="font-family:monospace;">2.7</span></div>
           <div>Build: <span style="font-family:monospace;" id="build-disp">...</span></div>
           <div>IP: <span style="font-family:monospace;" id="ip-disp">...</span></div>
         </div>
@@ -1441,8 +1488,40 @@
         });
     }
 
+    // ▼追加: グラデーション切り替え
+    function toggleGradation(el) {
+      const isGrad = el.checked;
+      const normalUI = document.getElementById('ui-normal-str');
+      const gradUI = document.getElementById('ui-grad-str');
+
+      if (isGrad) {
+        normalUI.style.display = 'none';
+        gradUI.style.display = 'flex';
+      } else {
+        normalUI.style.display = 'flex';
+        gradUI.style.display = 'none';
+      }
+    }
+
     function start() {
       const s = document.getElementById('inp-str').value;
+      const cnt = tgtCount;
+      const preset = currentPresetName;
+
+      // グラデーション設定取得
+      const isGrad = document.getElementById('chk-grad').checked;
+      let query = `/api/start?str=${s}&cnt=${cnt}&preset=${encodeURIComponent(preset)}`;
+
+      if (isGrad) {
+        const gStart = document.getElementById('inp-grad-start').value;
+        const gEnd = document.getElementById('inp-grad-end').value;
+        query += `&grad_start=${gStart}&grad_end=${gEnd}`;
+
+        // 完了画面用に保存
+        runStrength = `${gStart}→${gEnd}`;
+      } else {
+        runStrength = s;
+      }
 
       isManualStop = false;
       isRunning = true;
@@ -1454,8 +1533,7 @@
       sessionStartTime = lastStartAction;
 
       runPreset = currentPresetName;
-      runStrength = s;
-      runCount = tgtCount;
+      runCount = cnt;
 
       const h = parseFloat(document.getElementById('inp-hold').value) || 0.5;
       const r = parseFloat(document.getElementById('inp-reach').value) || 0.5;
@@ -1465,7 +1543,7 @@
 
       // プリセット名も送信
       // プリセット名も送信
-      fetch(`/api/start?str=${s}&cnt=${tgtCount}&preset=${encodeURIComponent(runPreset)}`)
+      fetch(query)
         .then(() => setTimeout(() => isStarting = false, 5000)) // タイムアウト延長
         .catch(() => { isStarting = false; });
     }
