@@ -1359,11 +1359,34 @@
     }
     fetchSettings();
 
+    // ★追加: 全設定をESP32に同期する最強の関数
+    let syncTimer = null;
+    function syncAllSettings() {
+      if (syncTimer) clearTimeout(syncTimer);
+      syncTimer = setTimeout(() => {
+        // 現在の画面の値を全部かき集める
+        const str = document.getElementById('inp-str').value;
+        const cnt = tgtCount; // グローバル変数
+        const preset = currentPresetName; // グローバル変数
+
+        // グラデーション関連
+        const gradEnabled = document.getElementById('chk-grad').checked ? 1 : 0;
+        const gradStart = document.getElementById('inp-grad-start').value;
+        const gradEnd = document.getElementById('inp-grad-end').value;
+
+        // URLを作る
+        const qs = `str=${str}&cnt=${cnt}&preset=${encodeURIComponent(preset)}` +
+          `&grad_enabled=${gradEnabled}&grad_start=${gradStart}&grad_end=${gradEnd}`;
+
+        console.log("Syncing:", qs);
+        fetch('/api/settings?' + qs).catch(e => console.log("Sync error", e));
+      }, 300); // 0.3秒のデバウンス（連打防止）
+    }
+
     function clearPresetUI() {
       document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
       currentPresetName = "Custom";
-      // ★追加: カスタムになったことも通知
-      fetch('/api/settings?preset=' + encodeURIComponent("カスタム"));
+      syncAllSettings(); // ★変更: 同期実行
     }
 
     function saveHold(v) { fetch('/api/settings?hold=' + v).then(() => updTimeDisp()); }
@@ -1373,8 +1396,7 @@
     function toggleGradation(el) {
       const isGrad = el.checked;
       toggleGradationUI(isGrad);
-      // ★追加: 即時送信
-      fetch('/api/settings?grad_enabled=' + (isGrad ? 1 : 0));
+      syncAllSettings(); // ★変更: 同期実行
     }
 
     // UI切り替えだけを切り出した関数
@@ -1395,11 +1417,11 @@
     // ★追加: グラデーション値の保存（スライダー操作時）
     function saveGradStart(val) {
       document.getElementById('grad-start-disp').innerText = val + '%';
-      fetch('/api/settings?grad_start=' + val);
+      syncAllSettings(); // ★変更: 同期実行
     }
     function saveGradEnd(val) {
       document.getElementById('grad-end-disp').innerText = val + '%';
-      fetch('/api/settings?grad_end=' + val);
+      syncAllSettings(); // ★変更: 同期実行
     }
 
     function toggleSensor(el) {
@@ -1410,7 +1432,7 @@
       document.getElementById('sth-disp').innerText = v;
       fetch('/api/settings?sth=' + v);
     }
-    function saveStr(v) { fetch('/api/settings?str=' + v); }
+    function saveStr(v) { syncAllSettings(); }
     function updSensorLbl(isOn) {
       const el = document.getElementById('sensor-lbl');
       if (isOn) { el.innerText = "ON"; el.style.color = "var(--accent-blue)"; }
@@ -1459,15 +1481,12 @@
     }
 
     function setCount(n, el) {
-      if (debounceTimer) clearTimeout(debounceTimer); // Cancel pending preset save
       tgtCount = n;
       document.querySelectorAll('.chk-btn').forEach(b => b.classList.remove('active'));
       el.classList.add('active');
 
       // Manual Override: Clear preset
-      clearPresetUI();
-
-      fetch('/api/settings?cnt=' + n).catch(() => { });
+      clearPresetUI(); // これが呼ばれると syncAllSettings も呼ばれるからOK
 
       if (!isRunning) updTimeDisp();
     }
@@ -1501,9 +1520,6 @@
       updVal('str-disp', s.value, '%');
       if (gEnd && gEndDisp) gEndDisp.innerText = gEnd.value + '%';
 
-      // ★追加: グラデーション終了値も更新されたので送信しておく（グラデON時用）
-      if (gEnd) fetch('/api/settings?grad_end=' + gEnd.value);
-
       tgtCount = count;
       document.querySelectorAll('.chk-btn').forEach(b => {
         if (parseInt(b.innerText.trim()) === count) {
@@ -1513,12 +1529,8 @@
         }
       });
 
-      // Sync params with debounce
-      if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => {
-        // ★変更: プリセット名も含めて送信
-        fetch(`/api/settings?str=${s.value}&cnt=${count}&preset=${encodeURIComponent(currentPresetName)}`).catch(() => { });
-      }, 500);
+      // ★一括同期
+      syncAllSettings();
 
       if (!isRunning) updTimeDisp();
     }

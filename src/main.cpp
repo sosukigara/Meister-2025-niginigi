@@ -371,11 +371,12 @@ void handleApiStop() {
 }
 
 void handleApiSettings() {
+  bool paramsUpdated = false; // デバッグ用
+
   // ★追加: グラデーション有効無効
   if (server.hasArg("grad_enabled")) {
     gradationEnabled = (server.arg("grad_enabled").toInt() == 1);
-    Serial.printf("[API] Settings: Gradation Enabled = %s\n",
-                  gradationEnabled ? "TRUE" : "FALSE");
+    paramsUpdated = true;
   }
 
   // ★追加: グラデーション開始・終了
@@ -385,6 +386,7 @@ void handleApiSettings() {
       gradationStart = 0;
     if (gradationStart > 100)
       gradationStart = 100;
+    paramsUpdated = true;
   }
   if (server.hasArg("grad_end")) {
     gradationEnd = server.arg("grad_end").toInt();
@@ -392,13 +394,13 @@ void handleApiSettings() {
       gradationEnd = 0;
     if (gradationEnd > 100)
       gradationEnd = 100;
+    paramsUpdated = true;
   }
 
   // ★追加: プリセット名
   if (server.hasArg("preset")) {
     currentSessionPreset = server.arg("preset");
-    Serial.printf("[API] Settings: Preset = %s\n",
-                  currentSessionPreset.c_str());
+    paramsUpdated = true;
   }
 
   if (server.hasArg("led_cnt")) {
@@ -422,14 +424,23 @@ void handleApiSettings() {
   if (server.hasArg("str")) {
     targetStrength = server.arg("str").toInt();
     preferences.putInt("str", targetStrength);
+    paramsUpdated = true;
   }
   if (server.hasArg("cnt")) {
     targetCount = server.arg("cnt").toInt();
     preferences.putInt("cnt", targetCount);
+    paramsUpdated = true;
   }
   if (server.hasArg("sth")) {
     sensorThreshold = server.arg("sth").toFloat();
     preferences.putFloat("sth", sensorThreshold);
+  }
+
+  if (paramsUpdated) {
+    Serial.printf(
+        "[API] Sync Settings: Str=%d, Cnt=%d, Grad=%d(%d-%d), Pre=%s\n",
+        targetStrength, targetCount, gradationEnabled, gradationStart,
+        gradationEnd, currentSessionPreset.c_str());
   }
 
   JsonDocument doc;
@@ -448,7 +459,7 @@ void handleApiSettings() {
   doc["grad_end"] = gradationEnd;
   doc["preset"] = currentSessionPreset;
 
-  doc["build"] = "2026-02-10 16:20";
+  doc["build"] = "2026-02-10 16:35";
 
   String output;
   serializeJson(doc, output);
