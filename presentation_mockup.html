@@ -1580,17 +1580,29 @@
                 const btn = document.querySelector(`.preset-btn[data-name="${matched}"]`);
                 if (btn) btn.classList.add('active');
                 currentPresetName = matched;
+
+                // ★追加: 読み込み時もグラデーション設定値を同期する
+                const gEnd = document.getElementById('inp-grad-end');
+                const gEndDisp = document.getElementById('grad-end-disp');
+                if (gEnd && gEndDisp) {
+                  if (matched === 'やわらか') { gEnd.value = 80; }
+                  else if (matched === 'ふつう') { gEnd.value = 90; }
+                  else if (matched === '高専生用') { gEnd.value = 100; }
+                  gEndDisp.innerText = gEnd.value + '%';
+                }
               } else {
                 currentPresetName = "Custom";
               }
 
-              // Ensure Count UI matches current tgtCount
+
+
+              updTimeDisp();
+
+              // Ensure Count UI matches current tgtCount (move to end)
               document.querySelectorAll('.chk-btn').forEach(b => {
                 if (parseInt(b.innerText.trim()) === parseInt(tgtCount)) b.classList.add('active');
                 else b.classList.remove('active');
               });
-
-              updTimeDisp();
               renderMyPresets();
               setTimeout(() => document.body.classList.add('ready'), 50);
             }).catch(e => {
