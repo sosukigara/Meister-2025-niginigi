@@ -1268,22 +1268,35 @@
       fetch('/api/settings?load=1')
         .then(r => r.json())
         .then(d => {
+          const setVal = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.value = val;
+          };
+          const setChecked = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.checked = (val == 1);
+          };
+          const setText = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.innerText = val;
+          };
+
           // 1. 基本設定の反映
-          if (d.hold) document.getElementById('inp-hold').value = d.hold;
-          if (d.reach) document.getElementById('inp-reach').value = d.reach;
-          if (d.pin13 !== undefined) document.getElementById('chk-pin13').checked = (d.pin13 == 1);
+          if (d.hold) setVal('inp-hold', d.hold);
+          if (d.reach) setVal('inp-reach', d.reach);
+          if (d.pin13 !== undefined) setChecked('chk-pin13', d.pin13);
           if (d.sensor !== undefined) {
-            document.getElementById('chk-sensor').checked = (d.sensor == 1);
+            setChecked('chk-sensor', d.sensor);
             updSensorLbl(d.sensor == 1);
           }
           if (d.sth) {
-            document.getElementById('inp-sth').value = d.sth;
-            document.getElementById('sth-disp').innerText = d.sth;
+            setVal('inp-sth', d.sth);
+            setText('sth-disp', d.sth);
           }
-          if (d.build) document.getElementById('build-disp').innerText = d.build;
+          if (d.build) setText('build-disp', d.build);
           if (d.led_cnt !== undefined) {
-            document.getElementById('inp-led-cnt').value = d.led_cnt;
-            document.getElementById('led-cnt-disp').innerText = d.led_cnt;
+            setVal('inp-led-cnt', d.led_cnt);
+            setText('led-cnt-disp', d.led_cnt);
           }
 
           // 2. 強さと回数を数値として確実に取得
@@ -1291,7 +1304,7 @@
           const cntVal = parseInt(d.cnt);
 
           if (!isNaN(strVal)) {
-            document.getElementById('inp-str').value = strVal;
+            setVal('inp-str', strVal);
             updVal('str-disp', strVal, '%');
           }
 
@@ -1405,7 +1418,10 @@
       document.getElementById('inp-led-color').value = hex;
     }
 
-    function updVal(id, v, unit) { document.getElementById(id).innerText = v + unit; }
+    function updVal(id, v, unit) {
+      const el = document.getElementById(id);
+      if (el) el.innerText = v + unit;
+    }
     function fmtTime(s) {
       let min = Math.floor(s / 60);
       let sec = Math.floor(s % 60);
