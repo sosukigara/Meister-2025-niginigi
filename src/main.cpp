@@ -121,7 +121,7 @@ struct HistoryItem {
   int    count;
 };
 std::vector<HistoryItem> historyLog;
-String currentSessionPreset = "カスタム";
+String currentSessionPreset = "Custom";
 
 void loadHistoryFromFile() {
   File file = LittleFS.open("/history.json", "r");
