@@ -5,8 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Onigiri Journal</title>
-  <title>Onigiri Journal</title>
-  
+
   <!-- スクリーンショット用ライブラリ -->
   <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 
@@ -41,7 +40,7 @@
       align-items: center;
       justify-content: center;
       background-color: #1a1a2e;
-      background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
+      background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px);
       background-size: 20px 20px;
       font-family: -apple-system, BlinkMacSystemFont, sans-serif;
     }
@@ -81,9 +80,21 @@
       background: linear-gradient(270deg, #2a2a2a, #1a1a1a);
       border-radius: 2px 0 0 2px;
     }
-    .vol-up { top: 150px; height: 60px; }
-    .vol-down { top: 230px; height: 60px; }
-    .silent-switch { top: 100px; height: 35px; }
+
+    .vol-up {
+      top: 150px;
+      height: 60px;
+    }
+
+    .vol-down {
+      top: 230px;
+      height: 60px;
+    }
+
+    .silent-switch {
+      top: 100px;
+      height: 35px;
+    }
 
 
     /* 画面エリア */
@@ -130,10 +141,12 @@
       align-items: center;
       gap: 8px;
     }
+
     .capture-btn:hover {
       transform: translateY(-2px);
       box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
     }
+
     .capture-btn:active {
       transform: scale(0.95);
     }
@@ -554,7 +567,8 @@
       background: var(--danger);
       color: white;
       display: none;
-      overflow: hidden; /* Fix for corner rendering issues in screenshots */
+      overflow: hidden;
+      /* Fix for corner rendering issues in screenshots */
     }
 
     .running .btn-start {
@@ -566,7 +580,12 @@
     }
 
     /* Screen Capture Range Dummy */
-    .range-wrapper { position: relative; width: 100%; height: 44px; }
+    .range-wrapper {
+      position: relative;
+      width: 100%;
+      height: 44px;
+    }
+
     .range-dummy {
       display: none;
       width: 100%;
@@ -577,14 +596,17 @@
       top: 15px;
       pointer-events: none;
     }
+
     .range-dummy-fill {
       height: 100%;
       background: linear-gradient(90deg, #e5e5ea 0%, #56d364 50%, #1a7f37 100%);
       border-radius: 7px;
-      width: 100%; /* Background gradient covers whole, we mask or just use full */
+      width: 100%;
+      /* Background gradient covers whole, we mask or just use full */
       /* Actually the original uses gradient on track. 
          Let's just replicate the track style */
     }
+
     .range-dummy-thumb {
       height: 32px;
       width: 32px;
@@ -594,7 +616,8 @@
       box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
       position: absolute;
       top: 50%;
-      transform: translateY(-50%) translateX(-50%); /* Center on position */
+      transform: translateY(-50%) translateX(-50%);
+      /* Center on position */
       left: 50%;
     }
 
@@ -873,9 +896,10 @@
       transform: translateX(-50%) translateY(0);
     }
 
-    to {
-      opacity: 1;
-    }
+    @keyframes fadeIn {
+      to {
+        opacity: 1;
+      }
     }
 
     @keyframes scaleIn {
@@ -918,6 +942,21 @@
         font-size: 1.1rem;
       }
     }
+
+    /* グラデーションモード時のUI変化用 */
+    .grad-mode .single-slider {
+      display: none;
+    }
+
+    .grad-mode .grad-slider {
+      display: flex;
+    }
+
+    .grad-slider {
+      display: none;
+      gap: 10px;
+      align-items: center;
+    }
   </style>
 </head>
 
@@ -933,1180 +972,1304 @@
     <div class="volume-btn silent-switch"></div>
     <div class="volume-btn vol-up"></div>
     <div class="volume-btn vol-down"></div>
-    
+
     <!-- Screen -->
     <div class="screen">
       <!-- App Content -->
       <div class="app-content">
 
-  <!-- VIEW: MAIN -->
-  <div id="view-main">
-    <div class="header">
-      <div style="display:flex; align-items:center; gap:8px;">
-        <div class="conn-dot" id="conn-dot"></div>
-        <h1 style="line-height:1; margin:0;">にぎにぎ</h1>
-        <span style="font-size:0.75rem; color:var(--text-sub); font-family:monospace; padding-top:4px;">v2.8</span>
-      </div>
+        <!-- VIEW: MAIN -->
+        <div id="view-main">
+          <div class="header">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <div class="conn-dot" id="conn-dot"></div>
+              <h1 style="line-height:1; margin:0;">にぎにぎ</h1>
+              <span
+                style="font-size:0.75rem; color:var(--text-sub); font-family:monospace; padding-top:4px;">v3.0</span>
+            </div>
 
-      <!-- Sensor Control -->
-      <div
-        style="display:flex; align-items:center; gap:6px; margin-left:auto; margin-right:4px; background:#fff; padding:6px 12px; border-radius:30px; border:1px solid #eee;">
-        <span style="font-size:0.8rem; font-weight:bold; color:var(--text-sub);">センサー</span>
-        <label class="switch" style="transform:scale(0.7); margin:0;">
-          <input type="checkbox" id="chk-sensor" onchange="toggleSensor(this)">
-          <span class="slider round"></span>
-        </label>
-        <span id="sensor-lbl"
-          style="font-size:0.8rem; font-weight:700; color:var(--text-sub); min-width:24px;">OFF</span>
-      </div>
+            <!-- Sensor Control -->
+            <div
+              style="display:flex; align-items:center; gap:6px; margin-left:auto; margin-right:4px; background:#fff; padding:6px 12px; border-radius:30px; border:1px solid #eee;">
+              <span style="font-size:0.8rem; font-weight:bold; color:var(--text-sub);">センサー</span>
+              <label class="switch" style="transform:scale(0.7); margin:0;">
+                <input type="checkbox" id="chk-sensor" onchange="toggleSensor(this)">
+                <span class="slider round"></span>
+              </label>
+              <span id="sensor-lbl"
+                style="font-size:0.8rem; font-weight:700; color:var(--text-sub); min-width:24px;">OFF</span>
+            </div>
 
-      <div class="header-actions">
-        <!-- History Icon -->
-        <button class="btn-icon" onclick="showHistory()"
-          style="font-weight:700; padding:8px 12px; border:1px solid #ddd; border-radius:12px; background:#f5f5f5; height:36px; display:flex; align-items:center;">
-          履歴
-        </button>
-        <!-- Settings Icon -->
-        <button class="btn-icon" onclick="showSettings()"
-          style="font-weight:700; padding:8px 12px; border:1px solid #ddd; border-radius:12px; background:#f5f5f5; height:36px; display:flex; align-items:center;">
-          設定
-        </button>
-      </div>
-    </div>
+            <div class="header-actions">
+              <!-- History Icon -->
+              <button class="btn-icon" onclick="showHistory()"
+                style="font-weight:700; padding:8px 12px; border:1px solid #ddd; border-radius:12px; background:#f5f5f5; height:36px; display:flex; align-items:center;">
+                履歴
+              </button>
+              <!-- Settings Icon -->
+              <button class="btn-icon" onclick="showSettings()"
+                style="font-weight:700; padding:8px 12px; border:1px solid #ddd; border-radius:12px; background:#f5f5f5; height:36px; display:flex; align-items:center;">
+                設定
+              </button>
+            </div>
+          </div>
 
-    <!-- 1. Monitor -->
-    <div class="card card-monitor">
-      <div class="monitor-row">
-        <div class="status-badge" id="status-badge">待機中</div>
-        <div class="time-big" id="time-display">--:--</div>
-      </div>
-      <div class="yt-progress-container">
-        <div class="yt-progress-fill" id="yt-fill"></div>
-      </div>
-    </div>
+          <!-- 1. Monitor -->
+          <div class="card card-monitor">
+            <div class="monitor-row">
+              <div class="status-badge" id="status-badge">待機中</div>
+              <div class="time-big" id="time-display">--:--</div>
+            </div>
+            <div class="yt-progress-container">
+              <div class="yt-progress-fill" id="yt-fill"></div>
+            </div>
+          </div>
 
-    <!-- 2. Preset -->
-    <div class="card card-preset">
-      <h3>プリセット</h3>
-      <div class="preset-grid" style="grid-template-columns: 1fr 1fr 1fr;">
-        <div class="preset-btn" onclick="setPreset('soft',this)" data-name="やわらか">やわらか</div>
-        <div class="preset-btn active" onclick="setPreset('normal',this)" data-name="ふつう">ふつう</div>
-        <div class="preset-btn" onclick="setPreset('kosen',this)" data-name="高専生用">高専生用</div>
-      </div>
-    </div>
+          <!-- 2. Preset -->
+          <div class="card card-preset">
+            <h3>プリセット</h3>
+            <div class="preset-grid" style="grid-template-columns: 1fr 1fr 1fr;">
+              <div class="preset-btn" onclick="setPreset('soft',this)" data-name="やわらか">やわらか</div>
+              <div class="preset-btn" onclick="setPreset('normal',this)" data-name="ふつう">ふつう</div>
+              <div class="preset-btn" onclick="setPreset('kosen',this)" data-name="高専生用">高専生用</div>
+            </div>
+          </div>
 
-    <!-- 3. Settings (Basic) -->
-    <div class="card card-settings">
-      <div class="setting-item">
-        <div class="s-header">
-          <span class="s-label">握りの強さ</span>
-          <span class="s-val" id="str-disp">50%</span>
+          <!-- 3. Settings (Basic) -->
+          <div class="card card-settings">
+            <div class="setting-item" style="padding-bottom: 0; border-bottom: none;">
+              <div class="s-header">
+                <span class="s-label">握りの強さ</span>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-size:0.8rem; color:var(--text-sub);">グラデーション</span>
+                  <label class="switch" style="transform:scale(0.8);">
+                    <input type="checkbox" id="chk-grad" onchange="toggleGradation(this)">
+                    <span class="slider round"></span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div class="setting-item single-slider" id="ui-normal-str">
+              <div class="s-header" style="margin-top:0;">
+                <span class="s-val" id="str-disp" style="margin-left:auto;">50%</span>
+              </div>
+              <div class="range-wrapper">
+                <input type="range" id="inp-str" min="0" max="100" value="50"
+                  oninput="updateRangeDummy(this.value); clearPresetUI(); updVal('str-disp', this.value, '%')"
+                  onchange="saveStr(this.value)">
+                <div id="inp-str-dummy" class="range-dummy">
+                  <div class="range-dummy-fill"></div>
+                  <div class="range-dummy-thumb" id="inp-str-dummy-thumb"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="setting-item grad-slider" id="ui-grad-str" style="display:none; flex-direction:column;">
+              <div style="width:100%; margin-bottom:10px;">
+                <div class="s-header" style="margin:0 0 4px 0;">
+                  <span style="font-size:0.85rem; color:var(--text-sub);">開始</span>
+                  <span class="s-val" id="grad-start-disp">30%</span>
+                </div>
+                <input type="range" id="inp-grad-start" min="0" max="100" value="30"
+                  oninput="document.getElementById('grad-start-disp').innerText = this.value + '%'">
+              </div>
+              <div style="width:100%;">
+                <div class="s-header" style="margin:0 0 4px 0;">
+                  <span style="font-size:0.85rem; color:var(--text-sub);">終了</span>
+                  <span class="s-val" id="grad-end-disp">100%</span>
+                </div>
+                <input type="range" id="inp-grad-end" min="0" max="100" value="100"
+                  oninput="document.getElementById('grad-end-disp').innerText = this.value + '%'">
+              </div>
+            </div>
+
+            <div class="setting-item"
+              style="flex-direction:row; align-items:center; justify-content:space-between; padding:16px 0;">
+              <span class="s-label">回数</span>
+              <div class="chk-group">
+                <div class="chk-btn" onclick="setCount(1,this)">1</div>
+                <div class="chk-btn" onclick="setCount(2,this)">2</div>
+                <div class="chk-btn" onclick="setCount(3,this)">3</div>
+                <div class="chk-btn" onclick="setCount(4,this)">4</div>
+                <div class="chk-btn" onclick="setCount(5,this)">5</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Actions -->
+          <div class="bottom-bar">
+            <button class="action-btn btn-start" onclick="start()">
+              開始
+            </button>
+            <button class="action-btn btn-stop" onclick="stop()">
+              停止
+            </button>
+          </div>
         </div>
-        <div class="range-wrapper">
-          <input type="range" id="inp-str" min="0" max="100" value="50"
-            oninput="updateRangeDummy(this.value); clearPresetUI(); updVal('str-disp', this.value, '%')" onchange="saveStr(this.value)">
-          <div id="inp-str-dummy" class="range-dummy">
-            <div class="range-dummy-fill"></div>
-            <div class="range-dummy-thumb" id="inp-str-dummy-thumb"></div>
+
+        <!-- VIEW: SETTINGS -->
+        <div id="view-settings" style="display:none; padding-bottom:40px;">
+          <div class="header" style="display:flex; align-items:center; gap:10px;">
+            <button onclick="showMain()"
+              style="background:none; border:none; color:var(--text-main); cursor:pointer; padding:0; font-size:2rem; font-weight:bold;">
+              ←
+            </button>
+            <h1>詳細設定</h1>
+          </div>
+
+          <div class="card card-settings">
+            <div class="setting-item">
+              <span class="s-label">システム情報</span>
+              <div style="margin-top:8px; font-size:0.9rem; color:var(--text-sub);">
+                <div>Version: <span style="font-family:monospace;">3.0</span></div>
+                <div>Build: <span style="font-family:monospace;" id="build-disp">...</span></div>
+                <div>IP: <span style="font-family:monospace;" id="ip-disp">...</span></div>
+              </div>
+            </div>
+
+            <div class="setting-item" style="flex-direction:row; align-items:center; justify-content:space-between;">
+              <span class="s-label">保持時間 (秒)</span>
+              <input type="number" id="inp-hold" value="0.5" step="0.1"
+                style="width:80px; padding:12px; border-radius:12px; border:1px solid #ddd; text-align:center; font-size:1.1rem; font-weight:700;"
+                onchange="saveHold(this.value)">
+            </div>
+
+            <!-- 手動調整 -->
+            <div class="setting-item">
+              <div class="s-header">
+                <span class="s-label">全サーボ同時調整 (90-270度)</span>
+                <span class="s-val" id="all-servo-val">270°</span>
+              </div>
+              <input type="range" min="90" max="270" value="270" step="1" oninput="setAllServos(this.value)"
+                style="width:100%;">
+            </div>
+
+            <div class="setting-item">
+              <div class="s-header">
+                <span class="s-label">サーボ1 (GPIO 18)</span>
+                <span class="s-val" id="servo1-val">270°</span>
+              </div>
+              <input type="range" id="inp-servo-1" min="90" max="270" value="270" step="1"
+                oninput="setServo(1, this.value)" style="width:100%;">
+            </div>
+
+            <div class="setting-item">
+              <div class="s-header">
+                <span class="s-label">サーボ2 (GPIO 26)</span>
+                <span class="s-val" id="servo2-val">270°</span>
+              </div>
+              <input type="range" id="inp-servo-2" min="90" max="270" value="270" step="1"
+                oninput="setServo(2, this.value)" style="width:100%;">
+            </div>
+
+            <div class="setting-item">
+              <div class="s-header">
+                <span class="s-label">サーボ3 (GPIO 27)</span>
+                <span class="s-val" id="servo3-val">270°</span>
+              </div>
+              <input type="range" id="inp-servo-3" min="90" max="270" value="270" step="1"
+                oninput="setServo(3, this.value)" style="width:100%;">
+            </div>
+
+            <div class="setting-item" style="flex-direction:row; align-items:center; justify-content:space-between;">
+              <span class="s-label">到達時間 (秒)</span>
+              <input type="number" id="inp-reach" value="0.5" step="0.1"
+                style="width:80px; padding:12px; border-radius:12px; border:1px solid #ddd; text-align:center; font-size:1.1rem; font-weight:700;"
+                onchange="saveReach(this.value)">
+            </div>
+
+          </div>
+
+          <!-- LED Control, offsets, limits, sensor, presets -->
+          <div class="card card-settings">
+            <!-- LED Control -->
+            <div class="setting-item">
+              <div class="s-header">
+                <span class="s-label">LED制御 (Pin 13)</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <span style="font-size:0.9rem; color:var(--text-sub);">手動モード</span>
+                <label class="switch" style="transform:scale(0.8);">
+                  <input type="checkbox" id="chk-led-manual" onchange="toggleLedMode(this)">
+                  <span class="slider round"></span>
+                </label>
+              </div>
+              <div style="display:flex; gap:10px; align-items:center;">
+                <input type="color" id="inp-led-color" value="#ff0000"
+                  style="height:40px; border:none; background:none; cursor:pointer;"
+                  onchange="setLedColorHex(this.value)">
+                <div style="display:flex; gap:8px;">
+                  <button onclick="setLedColor(255,0,0)"
+                    style="background:#ffdddd; color:#ff0000; border:none; padding:8px 12px; border-radius:8px; font-weight:bold;">赤</button>
+                  <button onclick="setLedColor(0,255,0)"
+                    style="background:#ddffdd; color:#00aa00; border:none; padding:8px 12px; border-radius:8px; font-weight:bold;">緑</button>
+                  <button onclick="setLedColor(0,0,255)"
+                    style="background:#ddddff; color:#0000ff; border:none; padding:8px 12px; border-radius:8px; font-weight:bold;">青</button>
+                  <button onclick="setLedColor(0,0,0)"
+                    style="background:#eee; color:#333; border:none; padding:8px 12px; border-radius:8px; font-weight:bold;">OFF</button>
+                </div>
+              </div>
+              <div style="margin-top:12px;">
+                <div class="s-header">
+                  <span class="s-label">LED使用数</span>
+                  <span class="s-val" id="led-cnt-disp">35</span>
+                </div>
+                <input type="range" id="inp-led-cnt" min="1" max="35" value="35" step="1"
+                  oninput="document.getElementById('led-cnt-disp').innerText=this.value; fetch('/api/settings?led_cnt='+this.value)">
+              </div>
+            </div>
+
+            <!-- 個別サーボ位置補正 -->
+            <div class="setting-item">
+              <div class="s-header">
+                <span class="s-label">サーボ1 位置補正</span>
+                <span class="s-val" id="servo1-offset-disp">0</span>
+              </div>
+              <input type="range" min="-90" max="90" value="0" step="1" id="inp-servo1-offset"
+                oninput="updateServoOffset(1, this.value)" style="width:100%;">
+            </div>
+
+            <div class="setting-item">
+              <div class="s-header">
+                <span class="s-label">サーボ2 位置補正</span>
+                <span class="s-val" id="servo2-offset-disp">0</span>
+              </div>
+              <input type="range" min="-90" max="90" value="0" step="1" id="inp-servo2-offset"
+                oninput="updateServoOffset(2, this.value)" style="width:100%;">
+            </div>
+
+            <div class="setting-item">
+              <div class="s-header">
+                <span class="s-label">サーボ3 位置補正</span>
+                <span class="s-val" id="servo3-offset-disp">0</span>
+              </div>
+              <input type="range" min="-90" max="90" value="0" step="1" id="inp-servo3-offset"
+                oninput="updateServoOffset(3, this.value)" style="width:100%;">
+            </div>
+
+            <!-- 角度制限 -->
+            <div class="setting-item">
+              <div class="s-header">
+                <span class="s-label">角度制限 (Min / Max)</span>
+              </div>
+
+              <div style="margin-top:10px;">
+                <div style="font-size:0.9rem; margin-bottom:4px;">サーボ1</div>
+                <div style="display:flex; gap:10px;">
+                  <input type="number" id="min-angle-1" min="0" max="270" step="1"
+                    style="width:100%; padding:8px; border-radius:8px; border:1px solid #ddd; text-align:center;"
+                    onchange="updateServoLimit(1)">
+                  <input type="number" id="max-angle-1" min="0" max="270" step="1"
+                    style="width:100%; padding:8px; border-radius:8px; border:1px solid #ddd; text-align:center;"
+                    onchange="updateServoLimit(1)">
+                </div>
+              </div>
+              <div style="margin-top:10px;">
+                <div style="font-size:0.9rem; margin-bottom:4px;">サーボ2</div>
+                <div style="display:flex; gap:10px;">
+                  <input type="number" id="min-angle-2" min="0" max="270" step="1"
+                    style="width:100%; padding:8px; border-radius:8px; border:1px solid #ddd; text-align:center;"
+                    onchange="updateServoLimit(2)">
+                  <input type="number" id="max-angle-2" min="0" max="270" step="1"
+                    style="width:100%; padding:8px; border-radius:8px; border:1px solid #ddd; text-align:center;"
+                    onchange="updateServoLimit(2)">
+                </div>
+              </div>
+              <div style="margin-top:10px;">
+                <div style="font-size:0.9rem; margin-bottom:4px;">サーボ3</div>
+                <div style="display:flex; gap:10px;">
+                  <input type="number" id="min-angle-3" min="0" max="270" step="1"
+                    style="width:100%; padding:8px; border-radius:8px; border:1px solid #ddd; text-align:center;"
+                    onchange="updateServoLimit(3)">
+                  <input type="number" id="max-angle-3" min="0" max="270" step="1"
+                    style="width:100%; padding:8px; border-radius:8px; border:1px solid #ddd; text-align:center;"
+                    onchange="updateServoLimit(3)">
+                </div>
+              </div>
+            </div>
+
+            <!-- センサー距離表示 -->
+            <div class="setting-item">
+              <span class="s-label">センサー距離</span>
+              <div style="font-size:1.5rem; font-weight:700; color:var(--accent-purple); margin-top:8px;">
+                <span id="distance-disp">--</span> cm
+              </div>
+            </div>
+
+            <div class="setting-item">
+              <div class="s-header">
+                <span class="s-label">センサーしきい値 (cm)</span>
+                <span class="s-val" id="sth-disp">10.0</span>
+              </div>
+              <input type="range" min="1" max="50" step="0.5" value="10" id="inp-sth" oninput="saveSth(this.value)"
+                style="width:100%;">
+            </div>
+            <!-- マイプリセット -->
+            <div class="setting-item" style="border-top: 4px solid #f2f2f7; margin-top:20px; padding-top:20px;">
+              <div class="s-header">
+                <span class="s-label">マイプリセット (保存/読込)</span>
+                <button onclick="saveMyPreset()"
+                  style="padding:6px 12px; border-radius:16px; background:var(--accent-blue); color:white; border:none; font-weight:bold; font-size:0.85rem;">保存</button>
+              </div>
+              <div id="my-preset-list" style="display:flex; flex-direction:column; gap:10px;">
+                <!-- JSで生成 -->
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <div class="setting-item"
-        style="flex-direction:row; align-items:center; justify-content:space-between; padding:16px 0;">
-        <span class="s-label">回数</span>
-        <div class="chk-group">
-          <div class="chk-btn" onclick="setCount(1,this)">1</div>
-          <div class="chk-btn" onclick="setCount(2,this)">2</div>
-          <div class="chk-btn" onclick="setCount(3,this)">3</div>
-          <div class="chk-btn" onclick="setCount(4,this)">4</div>
-          <div class="chk-btn" onclick="setCount(5,this)">5</div>
+      <!-- VIEW: HISTORY -->
+      <div id="view-history" style="display:none; padding-bottom:40px;">
+        <div class="header" style="display:flex; align-items:center; gap:10px;">
+          <button onclick="showMain()"
+            style="background:none; border:none; color:var(--text-main); cursor:pointer; padding:0; font-size:2rem; font-weight:bold;">
+            ←
+          </button>
+          <h1>履歴</h1>
         </div>
-      </div>
-    </div>
-
-    <!-- Bottom Actions -->
-    <div class="bottom-bar">
-      <button class="action-btn btn-start" onclick="start()">
-        開始
-      </button>
-      <button class="action-btn btn-stop" onclick="stop()">
-        停止
-      </button>
-    </div>
-  </div>
-
-  <!-- VIEW: SETTINGS -->
-  <div id="view-settings" style="display:none; padding-bottom:40px;">
-    <div class="header" style="display:flex; align-items:center; gap:10px;">
-      <button onclick="showMain()"
-        style="background:none; border:none; color:var(--text-main); cursor:pointer; padding:0; font-size:2rem; font-weight:bold;">
-        ←
-      </button>
-      <h1>詳細設定</h1>
-    </div>
-
-    <div class="card card-settings">
-      <div class="setting-item">
-        <span class="s-label">システム情報</span>
-        <div style="margin-top:8px; font-size:0.9rem; color:var(--text-sub);">
-          <div>Version: <span style="font-family:monospace;">2.3</span></div>
-          <div>Build: <span style="font-family:monospace;" id="build-disp">...</span></div>
-          <div>IP: <span style="font-family:monospace;" id="ip-disp">...</span></div>
+        <div id="history-list" class="card" style="padding:10px 20px;">
+          <div style="text-align:center; padding:20px; color:#888;">読み込み中...</div>
         </div>
       </div>
 
-      <div class="setting-item" style="flex-direction:row; align-items:center; justify-content:space-between;">
-        <span class="s-label">保持時間 (秒)</span>
-        <input type="number" id="inp-hold" value="0.5" step="0.1"
-          style="width:80px; padding:12px; border-radius:12px; border:1px solid #ddd; text-align:center; font-size:1.1rem; font-weight:700;"
-          onchange="saveHold(this.value)">
-      </div>
-
-      <!-- 手動調整 -->
-      <div class="setting-item">
-        <div class="s-header">
-          <span class="s-label">全サーボ同時調整 (90-270度)</span>
-          <span class="s-val" id="all-servo-val">270°</span>
-        </div>
-        <input type="range" min="90" max="270" value="270" step="1" oninput="setAllServos(this.value)"
-          style="width:100%;">
-      </div>
-
-      <div class="setting-item">
-        <div class="s-header">
-          <span class="s-label">サーボ1 (GPIO 18)</span>
-          <span class="s-val" id="servo1-val">270°</span>
-        </div>
-        <input type="range" id="inp-servo-1" min="90" max="270" value="270" step="1" oninput="setServo(1, this.value)"
-          style="width:100%;">
-      </div>
-
-      <div class="setting-item">
-        <div class="s-header">
-          <span class="s-label">サーボ2 (GPIO 26)</span>
-          <span class="s-val" id="servo2-val">270°</span>
-        </div>
-        <input type="range" id="inp-servo-2" min="90" max="270" value="270" step="1" oninput="setServo(2, this.value)"
-          style="width:100%;">
-      </div>
-
-      <div class="setting-item">
-        <div class="s-header">
-          <span class="s-label">サーボ3 (GPIO 27)</span>
-          <span class="s-val" id="servo3-val">270°</span>
-        </div>
-        <input type="range" id="inp-servo-3" min="90" max="270" value="270" step="1" oninput="setServo(3, this.value)"
-          style="width:100%;">
-      </div>
-
-      <div class="setting-item" style="flex-direction:row; align-items:center; justify-content:space-between;">
-        <span class="s-label">到達時間 (秒)</span>
-        <input type="number" id="inp-reach" value="0.5" step="0.1"
-          style="width:80px; padding:12px; border-radius:12px; border:1px solid #ddd; text-align:center; font-size:1.1rem; font-weight:700;"
-          onchange="saveReach(this.value)">
-      </div>
-
-    </div>
-
-    <!-- LED Control -->
-    <div class="setting-item">
-      <div class="s-header">
-        <span class="s-label">LED制御 (Pin 13)</span>
-      </div>
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-        <span style="font-size:0.9rem; color:var(--text-sub);">手動モード</span>
-        <label class="switch" style="transform:scale(0.8);">
-          <input type="checkbox" id="chk-led-manual" onchange="toggleLedMode(this)">
-          <span class="slider round"></span>
-        </label>
-      </div>
-      <div style="display:flex; gap:10px; align-items:center;">
-        <input type="color" id="inp-led-color" value="#ff0000"
-          style="height:40px; border:none; background:none; cursor:pointer;" onchange="setLedColorHex(this.value)">
-        <div style="display:flex; gap:8px;">
-          <button onclick="setLedColor(255,0,0)"
-            style="background:#ffdddd; color:#ff0000; border:none; padding:8px 12px; border-radius:8px; font-weight:bold;">赤</button>
-          <button onclick="setLedColor(0,255,0)"
-            style="background:#ddffdd; color:#00aa00; border:none; padding:8px 12px; border-radius:8px; font-weight:bold;">緑</button>
-          <button onclick="setLedColor(0,0,255)"
-            style="background:#ddddff; color:#0000ff; border:none; padding:8px 12px; border-radius:8px; font-weight:bold;">青</button>
-          <button onclick="setLedColor(0,0,0)"
-            style="background:#eee; color:#333; border:none; padding:8px 12px; border-radius:8px; font-weight:bold;">OFF</button>
+      <!-- Completion Modal -->
+      <div class="completion-modal" id="completion-modal">
+        <div class="completion-content">
+          <div class="completion-title">完成！</div>
+          <div class="completion-details">
+            <div class="detail-row">
+              <span class="detail-label">プリセット</span>
+              <span class="detail-value" id="detail-preset">-</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">強さ</span>
+              <span class="detail-value" id="detail-strength">-</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">回数</span>
+              <span class="detail-value" id="detail-count">-</span>
+            </div>
+          </div>
+          <button class="completion-btn" onclick="closeCompletionModal()">OK</button>
         </div>
       </div>
-      <div style="margin-top:12px;">
-        <div class="s-header">
-          <span class="s-label">LED使用数</span>
-          <span class="s-val" id="led-cnt-disp">35</span>
-        </div>
-        <input type="range" id="inp-led-cnt" min="1" max="35" value="35" step="1"
-          oninput="document.getElementById('led-cnt-disp').innerText=this.value; fetch('/api/settings?led_cnt='+this.value)">
-      </div>
-    </div>
 
-    <!-- 個別サーボ位置補正 -->
-    <div class="setting-item">
-      <div class="s-header">
-        <span class="s-label">サーボ1 位置補正</span>
-        <span class="s-val" id="servo1-offset-disp">0</span>
-      </div>
-      <input type="range" min="-90" max="90" value="0" step="1" id="inp-servo1-offset"
-        oninput="updateServoOffset(1, this.value)" style="width:100%;">
-    </div>
-
-    <div class="setting-item">
-      <div class="s-header">
-        <span class="s-label">サーボ2 位置補正</span>
-        <span class="s-val" id="servo2-offset-disp">0</span>
-      </div>
-      <input type="range" min="-90" max="90" value="0" step="1" id="inp-servo2-offset"
-        oninput="updateServoOffset(2, this.value)" style="width:100%;">
-    </div>
-
-    <div class="setting-item">
-      <div class="s-header">
-        <span class="s-label">サーボ3 位置補正</span>
-        <span class="s-val" id="servo3-offset-disp">0</span>
-      </div>
-      <input type="range" min="-90" max="90" value="0" step="1" id="inp-servo3-offset"
-        oninput="updateServoOffset(3, this.value)" style="width:100%;">
-    </div>
-
-    <!-- 角度制限 -->
-    <div class="setting-item">
-      <div class="s-header">
-        <span class="s-label">角度制限 (Min / Max)</span>
-      </div>
-
-      <div style="margin-top:10px;">
-        <div style="font-size:0.9rem; margin-bottom:4px;">サーボ1</div>
-        <div style="display:flex; gap:10px;">
-          <input type="number" id="min-angle-1" min="0" max="270" step="1"
-            style="width:100%; padding:8px; border-radius:8px; border:1px solid #ddd; text-align:center;"
-            onchange="updateServoLimit(1)">
-          <input type="number" id="max-angle-1" min="0" max="270" step="1"
-            style="width:100%; padding:8px; border-radius:8px; border:1px solid #ddd; text-align:center;"
-            onchange="updateServoLimit(1)">
+      <!-- Custom Modals -->
+      <div class="modal-overlay" id="prompt-modal">
+        <div class="modal-box">
+          <div class="modal-title" id="prompt-msg">入力</div>
+          <input type="text" class="modal-input" id="prompt-input" autocomplete="off">
+          <div class="modal-actions">
+            <button class="modal-btn btn-cancel" onclick="closePrompt(null)">キャンセル</button>
+            <button class="modal-btn btn-ok" onclick="closePrompt(true)">OK</button>
+          </div>
         </div>
       </div>
-      <div style="margin-top:10px;">
-        <div style="font-size:0.9rem; margin-bottom:4px;">サーボ2</div>
-        <div style="display:flex; gap:10px;">
-          <input type="number" id="min-angle-2" min="0" max="270" step="1"
-            style="width:100%; padding:8px; border-radius:8px; border:1px solid #ddd; text-align:center;"
-            onchange="updateServoLimit(2)">
-          <input type="number" id="max-angle-2" min="0" max="270" step="1"
-            style="width:100%; padding:8px; border-radius:8px; border:1px solid #ddd; text-align:center;"
-            onchange="updateServoLimit(2)">
+
+      <div class="modal-overlay" id="confirm-modal">
+        <div class="modal-box">
+          <div class="modal-title" id="confirm-msg">確認</div>
+          <div class="modal-actions">
+            <button class="modal-btn btn-cancel" onclick="closeConfirm(false)">いいえ</button>
+            <button class="modal-btn btn-ok" id="confirm-ok-btn" onclick="closeConfirm(true)">はい</button>
+          </div>
         </div>
       </div>
-      <div style="margin-top:10px;">
-        <div style="font-size:0.9rem; margin-bottom:4px;">サーボ3</div>
-        <div style="display:flex; gap:10px;">
-          <input type="number" id="min-angle-3" min="0" max="270" step="1"
-            style="width:100%; padding:8px; border-radius:8px; border:1px solid #ddd; text-align:center;"
-            onchange="updateServoLimit(3)">
-          <input type="number" id="max-angle-3" min="0" max="270" step="1"
-            style="width:100%; padding:8px; border-radius:8px; border:1px solid #ddd; text-align:center;"
-            onchange="updateServoLimit(3)">
-        </div>
-      </div>
-    </div>
 
-    <!-- センサー距離表示 -->
-    <div class="setting-item">
-      <span class="s-label">センサー距離</span>
-      <div style="font-size:1.5rem; font-weight:700; color:var(--accent-purple); margin-top:8px;">
-        <span id="distance-disp">--</span> cm
-      </div>
-    </div>
+      <div class="toast" id="toast">保存しました</div>
 
-    <div class="setting-item">
-      <div class="s-header">
-        <span class="s-label">センサーしきい値 (cm)</span>
-        <span class="s-val" id="sth-disp">10.0</span>
-      </div>
-      <input type="range" min="1" max="50" step="0.5" value="10" id="inp-sth" oninput="saveSth(this.value)"
-        style="width:100%;">
-    </div>
-    <!-- マイプリセット -->
-    <div class="setting-item" style="border-top: 4px solid #f2f2f7; margin-top:20px; padding-top:20px;">
-      <div class="s-header">
-        <span class="s-label">マイプリセット (保存/読込)</span>
-        <button onclick="saveMyPreset()"
-          style="padding:6px 12px; border-radius:16px; background:var(--accent-blue); color:white; border:none; font-weight:bold; font-size:0.85rem;">保存</button>
-      </div>
-      <div id="my-preset-list" style="display:flex; flex-direction:column; gap:10px;">
-        <!-- JSで生成 -->
-      </div>
-    </div>
-  </div>
-  </div>
+      <script>
+        // ========================================
+        // MOCKUP MODE - ESP32 APIをモック化
+        // ========================================
+        const MOCKUP_MODE = true;
 
-  <!-- VIEW: HISTORY -->
-  <div id="view-history" style="display:none; padding-bottom:40px;">
-    <div class="header" style="display:flex; align-items:center; gap:10px;">
-      <button onclick="showMain()"
-        style="background:none; border:none; color:var(--text-main); cursor:pointer; padding:0; font-size:2rem; font-weight:bold;">
-        ←
-      </button>
-      <h1>履歴</h1>
-    </div>
-    <div id="history-list" class="card" style="padding:10px 20px;">
-      <div style="text-align:center; padding:20px; color:#888;">読み込み中...</div>
-    </div>
-  </div>
+        // モック用の状態管理
+        let mockCycle = 0;
+        let mockState = 'IDLE';
+        let mockAnimationTimer = null;
 
-  <!-- Completion Modal -->
-  <div class="completion-modal" id="completion-modal">
-    <div class="completion-content">
-      <div class="completion-title">完成！</div>
-      <div class="completion-details">
-        <div class="detail-row">
-          <span class="detail-label">プリセット</span>
-          <span class="detail-value" id="detail-preset">-</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">強さ</span>
-          <span class="detail-value" id="detail-strength">-</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">回数</span>
-          <span class="detail-value" id="detail-count">-</span>
-        </div>
-      </div>
-      <button class="completion-btn" onclick="closeCompletionModal()">OK</button>
-    </div>
-  </div>
+        // 元のfetchを保存し、モック用にオーバーライド
+        const originalFetch = window.fetch;
+        window.fetch = function (url, options) {
+          if (MOCKUP_MODE && typeof url === 'string' && url.startsWith('/api')) {
+            console.log('[MOCK] API呼び出しをスキップ:', url);
+            // モックレスポンスを返す
+            return Promise.resolve({
+              ok: true,
+              json: () => Promise.resolve({
+                hold: 0.5,
+                reach: 0.5,
+                str: 50,
+                cnt: 3,
+                pin13: 0,
+                sensor: 0,
+                sth: 30,
+                led_cnt: 12,
+                build: 'MOCKUP',
+                state: mockState,
+                status: mockState,
+                cycle: mockCycle,
+                total: tgtCount || 3,
+                dur: sessionTotalDur || 5,
+                elap: 0,
+                distance: 25.0,
+                offsets: [0, 0, 0],
+                offset: 0
+              }),
+              text: () => Promise.resolve('OK')
+            });
+          }
+          return originalFetch.apply(this, arguments);
+        };
 
-  <!-- Custom Modals -->
-  <div class="modal-overlay" id="prompt-modal">
-    <div class="modal-box">
-      <div class="modal-title" id="prompt-msg">入力</div>
-      <input type="text" class="modal-input" id="prompt-input" autocomplete="off">
-      <div class="modal-actions">
-        <button class="modal-btn btn-cancel" onclick="closePrompt(null)">キャンセル</button>
-        <button class="modal-btn btn-ok" onclick="closePrompt(true)">OK</button>
-      </div>
-    </div>
-  </div>
+        // モック用のアニメーション処理
+        function mockStartAnimation() {
+          if (!MOCKUP_MODE) return;
 
-  <div class="modal-overlay" id="confirm-modal">
-    <div class="modal-box">
-      <div class="modal-title" id="confirm-msg">確認</div>
-      <div class="modal-actions">
-        <button class="modal-btn btn-cancel" onclick="closeConfirm(false)">いいえ</button>
-        <button class="modal-btn btn-ok" id="confirm-ok-btn" onclick="closeConfirm(true)">はい</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="toast" id="toast">保存しました</div>
-
-  <script>
-    // ========================================
-    // MOCKUP MODE - ESP32 APIをモック化
-    // ========================================
-    const MOCKUP_MODE = true;
-    
-    // モック用の状態管理
-    let mockCycle = 0;
-    let mockState = 'IDLE';
-    let mockAnimationTimer = null;
-    
-    // 元のfetchを保存し、モック用にオーバーライド
-    const originalFetch = window.fetch;
-    window.fetch = function(url, options) {
-      if (MOCKUP_MODE && typeof url === 'string' && url.startsWith('/api')) {
-        console.log('[MOCK] API呼び出しをスキップ:', url);
-        // モックレスポンスを返す
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({
-            hold: 0.5,
-            reach: 0.5,
-            str: 50,
-            cnt: 3,
-            pin13: 0,
-            sensor: 0,
-            sth: 30,
-            led_cnt: 12,
-            build: 'MOCKUP',
-            state: mockState,
-            status: mockState,
-            cycle: mockCycle,
-            total: tgtCount || 3,
-            dur: sessionTotalDur || 5,
-            elap: 0,
-            distance: 25.0,
-            offsets: [0, 0, 0],
-            offset: 0
-          }),
-          text: () => Promise.resolve('OK')
-        });
-      }
-      return originalFetch.apply(this, arguments);
-    };
-    
-    // モック用のアニメーション処理
-    function mockStartAnimation() {
-      if (!MOCKUP_MODE) return;
-      
-      mockCycle = 0;
-      mockState = 'SQUEEZING';
-      hasSessionFinished = false;
-      
-      const h = parseFloat(document.getElementById('inp-hold').value) || 0.5;
-      const r = parseFloat(document.getElementById('inp-reach').value) || 0.5;
-      const cycleDuration = (r + h + 0.5) * 1000; // 1サイクルあたりのミリ秒
-      
-      // サイクルアニメーション
-      function runCycle() {
-        if (!isRunning || isManualStop) {
-          finishSession();
-          return;
-        }
-        
-        mockCycle++;
-        if (mockCycle <= tgtCount) {
-          // 状態表示を更新
+          mockCycle = 0;
           mockState = 'SQUEEZING';
-          document.getElementById('status-badge').innerText = `動作中 (${mockCycle}/${tgtCount})`;
-          
-          if (mockCycle < tgtCount) {
-            mockAnimationTimer = setTimeout(runCycle, cycleDuration);
+          hasSessionFinished = false;
+
+          const h = parseFloat(document.getElementById('inp-hold').value) || 0.5;
+          const r = parseFloat(document.getElementById('inp-reach').value) || 0.5;
+          const cycleDuration = (r + h + 0.5) * 1000; // 1サイクルあたりのミリ秒
+
+          // サイクルアニメーション
+          function runCycle() {
+            if (!isRunning || isManualStop) {
+              finishSession();
+              return;
+            }
+
+            mockCycle++;
+            if (mockCycle <= tgtCount) {
+              // 状態表示を更新
+              mockState = 'SQUEEZING';
+              document.getElementById('status-badge').innerText = `動作中 (${mockCycle}/${tgtCount})`;
+
+              if (mockCycle < tgtCount) {
+                mockAnimationTimer = setTimeout(runCycle, cycleDuration);
+              }
+            }
           }
+
+          // 準備フェーズ後に開始
+          setTimeout(() => {
+            if (isRunning && !isManualStop) {
+              runCycle();
+            }
+          }, 300);
         }
-      }
-      
-      // 準備フェーズ後に開始
-      setTimeout(() => {
-        if (isRunning && !isManualStop) {
-          runCycle();
+
+        function mockStopAnimation() {
+          if (mockAnimationTimer) {
+            clearTimeout(mockAnimationTimer);
+            mockAnimationTimer = null;
+          }
+          mockState = 'IDLE';
+          mockCycle = 0;
         }
-      }, 300);
-    }
-    
-    function mockStopAnimation() {
-      if (mockAnimationTimer) {
-        clearTimeout(mockAnimationTimer);
-        mockAnimationTimer = null;
-      }
-      mockState = 'IDLE';
-      mockCycle = 0;
-    }
-    
-    // --- Custom Modal Logic ---
-    let promptResolve = null;
-    function showPrompt(msg, defaultVal = "") {
-      return new Promise(resolve => {
-        document.getElementById('prompt-msg').innerText = msg;
-        const inp = document.getElementById('prompt-input');
-        inp.value = defaultVal;
-        promptResolve = resolve;
-        document.getElementById('prompt-modal').classList.add('active');
-        setTimeout(() => inp.focus(), 100);
-      });
-    }
-    function closePrompt(isOk) {
-      document.getElementById('prompt-modal').classList.remove('active');
-      const val = document.getElementById('prompt-input').value;
-      if (promptResolve) promptResolve(isOk ? val : null);
-      promptResolve = null;
-    }
 
-    let confirmResolve = null;
-    function showConfirm(msg, isDanger = false) {
-      return new Promise(resolve => {
-        document.getElementById('confirm-msg').innerText = msg;
-        const btn = document.getElementById('confirm-ok-btn');
-        if (isDanger) { btn.className = "modal-btn btn-danger"; }
-        else { btn.className = "modal-btn btn-ok"; }
+        // --- Custom Modal Logic ---
+        let promptResolve = null;
+        function showPrompt(msg, defaultVal = "") {
+          return new Promise(resolve => {
+            document.getElementById('prompt-msg').innerText = msg;
+            const inp = document.getElementById('prompt-input');
+            inp.value = defaultVal;
+            promptResolve = resolve;
+            document.getElementById('prompt-modal').classList.add('active');
+            setTimeout(() => inp.focus(), 100);
+          });
+        }
+        function closePrompt(isOk) {
+          document.getElementById('prompt-modal').classList.remove('active');
+          const val = document.getElementById('prompt-input').value;
+          if (promptResolve) promptResolve(isOk ? val : null);
+          promptResolve = null;
+        }
 
-        confirmResolve = resolve;
-        document.getElementById('confirm-modal').classList.add('active');
-      });
-    }
-    function closeConfirm(isOk) {
-      document.getElementById('confirm-modal').classList.remove('active');
-      if (confirmResolve) confirmResolve(isOk);
-      confirmResolve = null;
-    }
+        let confirmResolve = null;
+        function showConfirm(msg, isDanger = false) {
+          return new Promise(resolve => {
+            document.getElementById('confirm-msg').innerText = msg;
+            const btn = document.getElementById('confirm-ok-btn');
+            if (isDanger) { btn.className = "modal-btn btn-danger"; }
+            else { btn.className = "modal-btn btn-ok"; }
 
-    function showToast(msg) {
-      const el = document.getElementById('toast');
-      el.innerText = msg;
-      el.classList.add('show');
-      setTimeout(() => el.classList.remove('show'), 2000);
-    }
+            confirmResolve = resolve;
+            document.getElementById('confirm-modal').classList.add('active');
+          });
+        }
+        function closeConfirm(isOk) {
+          document.getElementById('confirm-modal').classList.remove('active');
+          if (confirmResolve) confirmResolve(isOk);
+          confirmResolve = null;
+        }
 
-    // Global Vars
-    let isRunning = false;
-    let isStarting = false;
-    let isManualStop = false;
-    let hasSessionFinished = false; // Debounce flag -> true when finished, reset on start
-    let sessionStartTime = 0;
-    let sessionTotalDur = 0;
-    let tgtCount = 3;
-    let currentPresetName = "Custom";
-    let lastStatus = "IDLE";
-    let lastStartAction = 0;
-    let debounceTimer = null; // レスポンス改善用
+        function showToast(msg) {
+          const el = document.getElementById('toast');
+          el.innerText = msg;
+          el.classList.add('show');
+          setTimeout(() => el.classList.remove('show'), 2000);
+        }
+
+        // Global Vars
+        let isRunning = false;
+        let isStarting = false;
+        let isManualStop = false;
+        let hasSessionFinished = false; // Debounce flag -> true when finished, reset on start
+        let sessionStartTime = 0;
+        let sessionTotalDur = 0;
+        let tgtCount = 3;
+        let currentPresetName = "Custom";
+        let lastStatus = "IDLE";
+        let lastStartAction = 0;
+        let debounceTimer = null; // レスポンス改善用
 
 
-    // 完了画面用
-    let runPreset = "";
-    let runStrength = 0;
-    let runCount = 0;
+        // 完了画面用
+        let runPreset = "";
+        let runStrength = 0;
+        let runCount = 0;
 
-    document.getElementById('ip-disp').innerText = window.location.hostname;
+        document.getElementById('ip-disp').innerText = window.location.hostname;
 
-    function fetchSettings() {
-      fetch('/api/settings?load=1')
-        .then(r => r.json())
-        .then(d => {
-          if (d.hold) document.getElementById('inp-hold').value = d.hold;
-          if (d.reach) document.getElementById('inp-reach').value = d.reach;
-          if (d.pin13 !== undefined) document.getElementById('chk-pin13').checked = (d.pin13 == 1);
-          if (d.sensor !== undefined) {
-            document.getElementById('chk-sensor').checked = (d.sensor == 1);
-            updSensorLbl(d.sensor == 1);
+        function fetchSettings() {
+          fetch('/api/settings?load=1')
+            .then(r => r.json())
+            .then(d => {
+              const setVal = (id, val) => {
+                const el = document.getElementById(id);
+                if (el) el.value = val;
+              };
+              const setChecked = (id, val) => {
+                const el = document.getElementById(id);
+                if (el) el.checked = (val == 1);
+              };
+              const setText = (id, val) => {
+                const el = document.getElementById(id);
+                if (el) el.innerText = val;
+              };
+
+              // 1. 基本設定の反映
+              if (d.hold) setVal('inp-hold', d.hold);
+              if (d.reach) setVal('inp-reach', d.reach);
+              if (d.pin13 !== undefined) setChecked('chk-pin13', d.pin13);
+              if (d.sensor !== undefined) {
+                setChecked('chk-sensor', d.sensor);
+                updSensorLbl(d.sensor == 1);
+              }
+              if (d.sth) {
+                setVal('inp-sth', d.sth);
+                setText('sth-disp', d.sth);
+              }
+              if (d.build) setText('build-disp', d.build);
+              if (d.led_cnt !== undefined) {
+                setVal('inp-led-cnt', d.led_cnt);
+                setText('led-cnt-disp', d.led_cnt);
+              }
+
+              // 2. 強さと回数を数値として確実に取得
+              const strVal = parseInt(d.str);
+              const cntVal = parseInt(d.cnt);
+
+              if (!isNaN(strVal)) {
+                setVal('inp-str', strVal);
+                updVal('str-disp', strVal, '%');
+              }
+
+              if (!isNaN(cntVal)) {
+                tgtCount = cntVal;
+              }
+
+              // 3. プリセット判定とUI更新 (try-catchで保護)
+              try {
+                // いったん全ての選択状態を解除
+                document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+
+                let matched = null;
+                if (strVal === 80 && cntVal === 2) matched = 'やわらか';
+                else if (strVal === 90 && cntVal === 3) matched = 'ふつう';
+                else if (strVal === 95 && cntVal === 5) matched = '高専生用';
+
+                if (matched) {
+                  const btn = document.querySelector(`.preset-btn[data-name="${matched}"]`);
+                  if (btn) btn.classList.add('active');
+                  currentPresetName = matched;
+
+                  // グラデーション設定の同期
+                  const gEnd = document.getElementById('inp-grad-end');
+                  const gEndDisp = document.getElementById('grad-end-disp');
+                  if (gEnd && gEndDisp) {
+                    let endVal = 100; // デフォルト
+                    if (matched === 'やわらか') endVal = 80;
+                    if (matched === 'ふつう') endVal = 90;
+                    if (matched === '高専生用') endVal = 100;
+
+                    gEnd.value = endVal;
+                    gEndDisp.innerText = endVal + '%';
+                  }
+                } else {
+                  currentPresetName = "Custom";
+                }
+              } catch (e) {
+                console.error("Preset match error:", e);
+              }
+
+              // 4. 回数ボタンの表示更新 (try-catchで保護)
+              try {
+                const currentTgt = parseInt(tgtCount);
+                document.querySelectorAll('.chk-btn').forEach(b => {
+                  const btnVal = parseInt(b.innerText.trim());
+                  if (btnVal === currentTgt) {
+                    b.classList.add('active');
+                  } else {
+                    b.classList.remove('active');
+                  }
+                });
+              } catch (e) {
+                console.error("Count btn error:", e);
+              }
+
+              // 5. 時間表示更新
+              updTimeDisp();
+              renderMyPresets();
+              setTimeout(() => document.body.classList.add('ready'), 50);
+
+            }).catch(e => {
+              console.error("Fetch failed:", e);
+              updTimeDisp();
+              document.body.classList.add('ready');
+            });
+        }
+        fetchSettings();
+
+        function clearPresetUI() {
+          document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+          currentPresetName = "Custom";
+        }
+
+        function saveHold(v) { fetch('/api/settings?hold=' + v).then(() => updTimeDisp()); }
+        function saveReach(v) { fetch('/api/settings?reach=' + v).then(() => updTimeDisp()); }
+        function togglePin13(el) { fetch('/api/pin13?val=' + (el.checked ? 1 : 0)); }
+        function toggleSensor(el) {
+          updSensorLbl(el.checked);
+          fetch('/api/sensor_mode?val=' + (el.checked ? 1 : 0));
+        }
+        function saveSth(v) {
+          document.getElementById('sth-disp').innerText = v;
+          fetch('/api/settings?sth=' + v);
+        }
+        function saveStr(v) { fetch('/api/settings?str=' + v); }
+        function updSensorLbl(isOn) {
+          const el = document.getElementById('sensor-lbl');
+          if (isOn) { el.innerText = "ON"; el.style.color = "var(--accent-blue)"; }
+          else { el.innerText = "OFF"; el.style.color = "var(--text-sub)"; }
+        }
+
+        function manualServo(pct) {
+          document.getElementById('man-val').innerText = pct + "%";
+          fetch('/api/manual?val=' + pct);
+        }
+
+        function toggleLedMode(el) {
+          const mode = el.checked ? "manual" : "auto";
+          fetch('/api/led_mode?mode=' + mode);
+        }
+        function setLedColorHex(hex) {
+          fetch('/api/led?color=' + encodeURIComponent(hex));
+          document.getElementById('chk-led-manual').checked = true;
+        }
+        function setLedColor(r, g, b) {
+          fetch(`/api/led?r=${r}&g=${g}&b=${b}`);
+          document.getElementById('chk-led-manual').checked = true;
+          // カラーピッカーの値も更新（近似）
+          const hex = "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+          document.getElementById('inp-led-color').value = hex;
+        }
+
+        function updVal(id, v, unit) {
+          const el = document.getElementById(id);
+          if (el) el.innerText = v + unit;
+        }
+        function fmtTime(s) {
+          let min = Math.floor(s / 60);
+          let sec = Math.floor(s % 60);
+          return min + ":" + (sec < 10 ? "0" : "") + sec;
+        }
+
+        function updTimeDisp() {
+          if (isRunning) return;
+          const h = parseFloat(document.getElementById('inp-hold').value) || 0.5;
+          const r = parseFloat(document.getElementById('inp-reach').value) || 0.5;
+          // 理論値: PREPARE(0.3s) + Count * (Reach + Hold + RELEASE(0.5s))
+          // Backend: 0.3 + (targetCount * (reach + hold + 0.5))
+          const total = 0.3 + (tgtCount * (r + h + 0.5));
+          document.getElementById('time-display').innerText = fmtTime(Math.ceil(total));
+        }
+
+        function setCount(n, el) {
+          if (debounceTimer) clearTimeout(debounceTimer); // Cancel pending preset save
+          tgtCount = n;
+          document.querySelectorAll('.chk-btn').forEach(b => b.classList.remove('active'));
+          el.classList.add('active');
+
+          // Manual Override: Clear preset
+          clearPresetUI();
+
+          fetch('/api/settings?cnt=' + n).catch(() => { });
+
+          if (!isRunning) updTimeDisp();
+        }
+
+        function setPreset(mode, el) {
+          document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+          el.classList.add('active');
+          currentPresetName = el.getAttribute('data-name');
+
+          const s = document.getElementById('inp-str');
+          const gEnd = document.getElementById('inp-grad-end');
+          const gEndDisp = document.getElementById('grad-end-disp');
+          let count = 3;
+
+          if (mode === 'soft') {
+            s.value = 80;
+            if (gEnd) gEnd.value = 80;
+            count = 2;
           }
-          if (d.sth) {
-            document.getElementById('inp-sth').value = d.sth;
-            document.getElementById('sth-disp').innerText = d.sth;
+          if (mode === 'normal') {
+            s.value = 90;
+            if (gEnd) gEnd.value = 90;
+            count = 3;
           }
-          if (d.build) {
-            document.getElementById('build-disp').innerText = d.build;
-          }
-
-          if (d.str !== undefined) {
-            document.getElementById('inp-str').value = d.str;
-            updVal('str-disp', d.str, '%');
+          if (mode === 'kosen') {
+            s.value = 95;
+            if (gEnd) gEnd.value = 100;
+            count = 5;
           }
 
-          if (d.cnt !== undefined) tgtCount = d.cnt;
+          updVal('str-disp', s.value, '%');
+          if (gEnd && gEndDisp) gEndDisp.innerText = gEnd.value + '%';
 
-          // Ensure Count UI matches current tgtCount (default 3 if backend empty)
+          tgtCount = count;
           document.querySelectorAll('.chk-btn').forEach(b => {
-            if (parseInt(b.innerText.trim()) === parseInt(tgtCount)) b.classList.add('active');
-            else b.classList.remove('active');
+            if (parseInt(b.innerText.trim()) === count) {
+              b.classList.add('active');
+            } else {
+              b.classList.remove('active');
+            }
           });
 
-          if (d.led_cnt !== undefined) {
-            document.getElementById('inp-led-cnt').value = d.led_cnt;
-            document.getElementById('led-cnt-disp').innerText = d.led_cnt;
-          }
+          // Sync params with debounce
+          if (debounceTimer) clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(() => {
+            fetch(`/api/settings?str=${s.value}&cnt=${count}`).catch(() => { });
+          }, 500);
 
-          // Initial Preset Matching (v2.5 defaults)
-          let matched = null;
-          if (d.str == 80 && d.cnt == 2) matched = 'やわらか';
-          else if (d.str == 90 && d.cnt == 3) matched = 'ふつう';
-          else if (d.str == 95 && d.cnt == 5) matched = '高専生用';
-
-          document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-          if (matched) {
-            const btn = document.querySelector(`.preset-btn[data-name="${matched}"]`);
-            if (btn) btn.classList.add('active');
-            currentPresetName = matched;
-          } else {
-            currentPresetName = "Custom";
-          }
-
-          updTimeDisp();
-          renderMyPresets();
-          setTimeout(() => document.body.classList.add('ready'), 50);
-        }).catch(e => {
-          updTimeDisp();
-          document.body.classList.add('ready');
-        });
-    }
-    fetchSettings();
-
-    function clearPresetUI() {
-      document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-      currentPresetName = "Custom";
-    }
-
-    function saveHold(v) { fetch('/api/settings?hold=' + v).then(() => updTimeDisp()); }
-    function saveReach(v) { fetch('/api/settings?reach=' + v).then(() => updTimeDisp()); }
-    function togglePin13(el) { fetch('/api/pin13?val=' + (el.checked ? 1 : 0)); }
-    function toggleSensor(el) {
-      updSensorLbl(el.checked);
-      fetch('/api/sensor_mode?val=' + (el.checked ? 1 : 0));
-    }
-    function saveSth(v) {
-      document.getElementById('sth-disp').innerText = v;
-      fetch('/api/settings?sth=' + v);
-    }
-    function saveStr(v) { fetch('/api/settings?str=' + v); }
-    function updSensorLbl(isOn) {
-      const el = document.getElementById('sensor-lbl');
-      if (isOn) { el.innerText = "ON"; el.style.color = "var(--accent-blue)"; }
-      else { el.innerText = "OFF"; el.style.color = "var(--text-sub)"; }
-    }
-
-    function manualServo(pct) {
-      document.getElementById('man-val').innerText = pct + "%";
-      fetch('/api/manual?val=' + pct);
-    }
-
-    function toggleLedMode(el) {
-      const mode = el.checked ? "manual" : "auto";
-      fetch('/api/led_mode?mode=' + mode);
-    }
-    function setLedColorHex(hex) {
-      fetch('/api/led?color=' + encodeURIComponent(hex));
-      document.getElementById('chk-led-manual').checked = true;
-    }
-    function setLedColor(r, g, b) {
-      fetch(`/api/led?r=${r}&g=${g}&b=${b}`);
-      document.getElementById('chk-led-manual').checked = true;
-      // カラーピッカーの値も更新（近似）
-      const hex = "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
-      document.getElementById('inp-led-color').value = hex;
-    }
-
-    function updVal(id, v, unit) { document.getElementById(id).innerText = v + unit; }
-    function fmtTime(s) {
-      let min = Math.floor(s / 60);
-      let sec = Math.floor(s % 60);
-      return min + ":" + (sec < 10 ? "0" : "") + sec;
-    }
-
-    function updTimeDisp() {
-      if (isRunning) return;
-      const h = parseFloat(document.getElementById('inp-hold').value) || 0.5;
-      const r = parseFloat(document.getElementById('inp-reach').value) || 0.5;
-      // 理論値: PREPARE(0.3s) + Count * (Reach + Hold + RELEASE(0.5s))
-      // Backend: 0.3 + (targetCount * (reach + hold + 0.5))
-      const total = 0.3 + (tgtCount * (r + h + 0.5));
-      document.getElementById('time-display').innerText = fmtTime(Math.ceil(total));
-    }
-
-    function setCount(n, el) {
-      if (debounceTimer) clearTimeout(debounceTimer); // Cancel pending preset save
-      tgtCount = n;
-      document.querySelectorAll('.chk-btn').forEach(b => b.classList.remove('active'));
-      el.classList.add('active');
-
-      // Manual Override: Clear preset
-      clearPresetUI();
-
-      fetch('/api/settings?cnt=' + n).catch(() => { });
-
-      if (!isRunning) updTimeDisp();
-    }
-
-    function setPreset(mode, el) {
-      document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-      el.classList.add('active');
-      currentPresetName = el.getAttribute('data-name');
-
-      const s = document.getElementById('inp-str');
-      let count = 3;
-
-      if (mode === 'soft') {
-        s.value = 80;
-        count = 2;
-      }
-      if (mode === 'normal') {
-        s.value = 90;
-        count = 3;
-      }
-      if (mode === 'kosen') {
-        s.value = 95;
-        count = 5;
-      }
-
-      updVal('str-disp', s.value, '%');
-
-      tgtCount = count;
-      document.querySelectorAll('.chk-btn').forEach(b => {
-        if (parseInt(b.innerText) === count) {
-          b.classList.add('active');
-        } else {
-          b.classList.remove('active');
+          if (!isRunning) updTimeDisp();
         }
-      });
 
-      // Sync params with debounce
-      if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => {
-        fetch(`/api/settings?str=${s.value}&cnt=${count}`).catch(() => { });
-      }, 500);
+        function showSettings() {
+          document.getElementById('view-main').style.display = 'none';
+          document.getElementById('view-settings').style.display = 'block';
+          document.getElementById('view-history').style.display = 'none';
+        }
+        function showHistory() {
+          document.getElementById('view-main').style.display = 'none';
+          document.getElementById('view-settings').style.display = 'none';
+          document.getElementById('view-history').style.display = 'block';
+          fetchHistory();
+        }
+        function showMain() {
+          document.getElementById('view-settings').style.display = 'none';
+          document.getElementById('view-history').style.display = 'none';
+          document.getElementById('view-main').style.display = 'block';
+        }
 
-      if (!isRunning) updTimeDisp();
-    }
-
-    function showSettings() {
-      document.getElementById('view-main').style.display = 'none';
-      document.getElementById('view-settings').style.display = 'block';
-      document.getElementById('view-history').style.display = 'none';
-    }
-    function showHistory() {
-      document.getElementById('view-main').style.display = 'none';
-      document.getElementById('view-settings').style.display = 'none';
-      document.getElementById('view-history').style.display = 'block';
-      fetchHistory();
-    }
-    function showMain() {
-      document.getElementById('view-settings').style.display = 'none';
-      document.getElementById('view-history').style.display = 'none';
-      document.getElementById('view-main').style.display = 'block';
-    }
-
-    function fetchHistory() {
-      const list = document.getElementById('history-list');
-      fetch('/api/history')
-        .then(r => r.json())
-        .then(data => {
-          list.innerHTML = "";
-          if (data.length === 0) {
-            list.innerHTML = "<div style='padding:20px; text-align:center; color:#888;'>履歴はありません</div>";
-            return;
-          }
-          // 新しい順に表示
-          data.reverse().forEach(item => {
-            const row = document.createElement('div');
-            row.className = 'history-row';
-            row.innerHTML = `
+        function fetchHistory() {
+          const list = document.getElementById('history-list');
+          fetch('/api/history')
+            .then(r => r.json())
+            .then(data => {
+              list.innerHTML = "";
+              if (data.length === 0) {
+                list.innerHTML = "<div style='padding:20px; text-align:center; color:#888;'>履歴はありません</div>";
+                return;
+              }
+              // 新しい順に表示
+              data.reverse().forEach(item => {
+                const row = document.createElement('div');
+                row.className = 'history-row';
+                row.innerHTML = `
                   <div class="h-info">
                      <span class="h-preset">${item.preset}</span>
                      <div class="h-detail">強さ:${item.strength}% / ${item.count}回</div>
                   </div>
                   <div class="h-time">${item.time}</div>
                 `;
-            list.appendChild(row);
-          });
-        })
-        .catch(e => {
-          list.innerHTML = "<div style='color:red; text-align:center;'>読み込みエラー</div>";
-        });
-    }
-
-    function start() {
-      const s = document.getElementById('inp-str').value;
-
-      isManualStop = false;
-      isRunning = true;
-      isStarting = true; // Flag to prevent race condition
-      document.body.classList.add('running');
-      document.getElementById('status-badge').innerText = "準備中...";
-
-      lastStartAction = Date.now();
-      sessionStartTime = lastStartAction;
-
-      runPreset = currentPresetName;
-      runStrength = s;
-      runCount = tgtCount;
-
-      const h = parseFloat(document.getElementById('inp-hold').value) || 0.5;
-      const r = parseFloat(document.getElementById('inp-reach').value) || 0.5;
-      // 理論値に合わせて補正
-      sessionTotalDur = 0.3 + (tgtCount * (r + h + 0.5));
-      if (sessionTotalDur < 1) sessionTotalDur = 1;
-
-      // プリセット名も送信
-      // プリセット名も送信
-      fetch(`/api/start?str=${s}&cnt=${tgtCount}&preset=${encodeURIComponent(runPreset)}`)
-        .then(() => setTimeout(() => isStarting = false, 5000)) // タイムアウト延長
-        .catch(() => { isStarting = false; });
-      
-      // モックモード: クライアント側でアニメーション開始
-      if (MOCKUP_MODE) {
-        isStarting = false;
-        mockStartAnimation();
-      }
-    }
-
-    function stop() {
-      isManualStop = true;
-      fetch('/api/stop').catch(() => { });
-      
-      // モックモード: アニメーション停止
-      if (MOCKUP_MODE) {
-        mockStopAnimation();
-        finishSession();
-      }
-    }
-
-    function setOnline(isOnline) {
-      if (isOnline) {
-        document.body.classList.remove('offline');
-      } else {
-        document.body.classList.add('offline');
-      }
-    }
-
-    // --- SMOOTH ANIMATION LOOP ---
-    function animateLoop() {
-      if (isRunning && sessionTotalDur > 0) {
-        const now = Date.now();
-        const elapsedSec = (now - sessionStartTime) / 1000;
-        const remaining = Math.max(0, sessionTotalDur - elapsedSec);
-
-        document.getElementById('time-display').innerText = fmtTime(Math.ceil(remaining));
-
-        let pct = (elapsedSec / sessionTotalDur) * 100;
-        if (pct < 0) pct = 0;
-        if (pct > 100) pct = 100;
-        document.getElementById('yt-fill').style.width = pct + "%";
-
-        // 残り時間が0になったら即座に完了処理 (UX優先)
-        if (remaining <= 0 && !isManualStop) {
-          finishSession();
+                list.appendChild(row);
+              });
+            })
+            .catch(() => {
+              list.innerHTML = "<div style='color:red; text-align:center;'>読み込みエラー</div>";
+            });
         }
-      }
-      requestAnimationFrame(animateLoop);
-    }
-    requestAnimationFrame(animateLoop);
 
-    // --- SYNC WITH SERVER (Adaptive Polling) ---
-    function syncStatus() {
-      // モックモードではサーバー同期をスキップ
-      if (MOCKUP_MODE) {
-        setOnline(true);
-        return; // ポーリング停止
-      }
-      
-      fetch('/api/status')
-        .then(r => r.json())
-        .then(d => {
-          setOnline(true);
+        // ▼追加: グラデーション切り替え
+        function toggleGradation(el) {
+          const isGrad = el.checked;
+          const normalUI = document.getElementById('ui-normal-str');
+          const gradUI = document.getElementById('ui-grad-str');
 
-          if (d.state !== 'IDLE') {
-            isStarting = false; // 状態遷移を確認したらフラグ解除
-
-            // Reset finished flag if we are running again (and not FINISHED_BLINK)
-            if (d.state !== 'FINISHED_BLINK') {
-              hasSessionFinished = false;
-            }
-
-            if (!isRunning) {
-              isRunning = true;
-              document.body.classList.add('running');
-              sessionStartTime = Date.now() - (d.elap || 0);
-            }
-            // サーバーからの所要時間で更新
-            if (d.dur && d.dur > 0) sessionTotalDur = d.dur;
-
-            // 詳細情報の同期 (完了画面用)
-            if (d.preset) runPreset = d.preset;
-            if (d.str) runStrength = d.str;
-            if (d.total) runCount = d.total;
-
-            let txt = "動作中";
-            if (d.state === 'PREPARE_SQUEEZE') txt = "準備中...";
-            if (d.state === 'SQUEEZING') txt = "握り中";
-            if (d.state === 'HOLDING') txt = "保持中";
-            if (d.state === 'RELEASING') txt = "解放中";
-            document.getElementById('status-badge').innerText = `${txt} (${d.cycle + 1}/${d.total})`;
-
-            sessionTotalDur = d.dur || 1;
-            const estimatedStart = Date.now() - (d.elap || 0);
-            if (Math.abs(estimatedStart - sessionStartTime) > 500) {
-              sessionStartTime = estimatedStart;
-            }
-
+          if (isGrad) {
+            normalUI.style.display = 'none';
+            gradUI.style.display = 'flex';
           } else {
-            // IDLEに戻った = 動作完了
-            // FINISHED_BLINK状態も "IDLEではない" のでここには来ない = 完了画面は出ない
-            // FINISHED_BLINK -> IDLE に遷移した瞬間にここに来る
-            if (isRunning && !isStarting) {
+            normalUI.style.display = 'flex';
+            gradUI.style.display = 'none';
+          }
+        }
+
+        function start() {
+          const s = document.getElementById('inp-str').value;
+          const cnt = tgtCount;
+          const preset = currentPresetName;
+
+          // グラデーション設定取得
+          const isGrad = document.getElementById('chk-grad').checked;
+          let query = `/api/start?str=${s}&cnt=${cnt}&preset=${encodeURIComponent(preset)}`;
+
+          if (isGrad) {
+            const gStart = document.getElementById('inp-grad-start').value;
+            const gEnd = document.getElementById('inp-grad-end').value;
+            query += `&grad_start=${gStart}&grad_end=${gEnd}`;
+
+            // 完了画面用に保存
+            runStrength = `${gStart}% → ${gEnd}`;
+          } else {
+            runStrength = s;
+          }
+
+          isManualStop = false;
+          isRunning = true;
+          isStarting = true; // Flag to prevent race condition
+          document.body.classList.add('running');
+          document.getElementById('status-badge').innerText = "準備中...";
+
+          lastStartAction = Date.now();
+          sessionStartTime = lastStartAction;
+
+          runPreset = currentPresetName;
+          runCount = cnt;
+
+          const h = parseFloat(document.getElementById('inp-hold').value) || 0.5;
+          const r = parseFloat(document.getElementById('inp-reach').value) || 0.5;
+          // 理論値に合わせて補正
+          sessionTotalDur = 0.3 + (tgtCount * (r + h + 0.5));
+          if (sessionTotalDur < 1) sessionTotalDur = 1;
+
+          // プリセット名も送信
+          fetch(query)
+            .then(() => setTimeout(() => isStarting = false, 5000)) // タイムアウト延長
+            .catch(() => { isStarting = false; });
+
+          // モックモード: クライアント側でアニメーション開始
+          if (MOCKUP_MODE) {
+            isStarting = false;
+            mockStartAnimation();
+          }
+        }
+
+        function stop() {
+          isManualStop = true;
+          fetch('/api/stop').catch(() => { });
+
+          // モックモード: アニメーション停止
+          if (MOCKUP_MODE) {
+            mockStopAnimation();
+            finishSession();
+          }
+        }
+
+        function setOnline(isOnline) {
+          if (isOnline) {
+            document.body.classList.remove('offline');
+          } else {
+            document.body.classList.add('offline');
+          }
+        }
+
+        // --- SMOOTH ANIMATION LOOP ---
+        function animateLoop() {
+          if (isRunning && sessionTotalDur > 0) {
+            const now = Date.now();
+            const elapsedSec = (now - sessionStartTime) / 1000;
+            const remaining = Math.max(0, sessionTotalDur - elapsedSec);
+
+            document.getElementById('time-display').innerText = fmtTime(Math.ceil(remaining));
+
+            let pct = (elapsedSec / sessionTotalDur) * 100;
+            if (pct < 0) pct = 0;
+            if (pct > 100) pct = 100;
+            document.getElementById('yt-fill').style.width = pct + "%";
+
+            // 残り時間が0になったら即座に完了処理 (UX優先)
+            if (remaining <= 0 && !isManualStop) {
               finishSession();
             }
           }
-          lastStatus = d.state;
-        })
-        .catch(e => {
-          setOnline(false);
-        })
-        .finally(() => {
-          // 動作中は高速ポーリング(200ms), 待機中は低速(1000ms)
-          const nextInterval = (isRunning || isStarting) ? 200 : 1000;
-          setTimeout(syncStatus, nextInterval);
-        });
-    }
-    // Start Polling
-    syncStatus();
+          requestAnimationFrame(animateLoop);
+        }
+        requestAnimationFrame(animateLoop);
 
-    function finishSession() {
-      if (!isRunning) return; // 既に完了済みなら何もしない
+        // --- SYNC WITH SERVER (Adaptive Polling) ---
+        function syncStatus() {
+          // モックモードではサーバー同期をスキップ
+          if (MOCKUP_MODE) {
+            setOnline(true);
+            return; // ポーリング停止
+          }
 
-      // Always clean up UI state
-      isRunning = false;
-      document.body.classList.remove('running');
-      document.getElementById('status-badge').innerText = "待機中";
-      document.getElementById('yt-fill').style.width = '0%';
-      updTimeDisp();
-      
-      // モックモード: 状態リセット
-      if (MOCKUP_MODE) {
-        mockStopAnimation();
-      }
+          fetch('/api/status')
+            .then(r => r.json())
+            .then(d => {
+              setOnline(true);
 
-      if (hasSessionFinished) return; // Prevent double modal
-      hasSessionFinished = true;
+              if (d.state !== 'IDLE') {
+                isStarting = false; // 状態遷移を確認したらフラグ解除
 
-      if (!isManualStop) {
-        showCompletionModal();
-      }
-      isManualStop = false;
-    }
+                // Reset finished flag if we are running again (and not FINISHED_BLINK)
+                if (d.state !== 'FINISHED_BLINK') {
+                  hasSessionFinished = false;
+                }
 
-    function showCompletionModal() {
-      const modal = document.getElementById('completion-modal');
-      document.getElementById('detail-preset').innerText = runPreset;
-      document.getElementById('detail-strength').innerText = runStrength + '%';
-      document.getElementById('detail-count').innerText = runCount + '回';
-      modal.classList.add('show');
-    }
+                if (!isRunning) {
+                  isRunning = true;
+                  document.body.classList.add('running');
+                  sessionStartTime = Date.now() - (d.elap || 0);
+                }
+                // サーバーからの所要時間で更新
+                if (d.dur && d.dur > 0) sessionTotalDur = d.dur;
 
-    function closeCompletionModal() {
-      document.getElementById('completion-modal').classList.remove('show');
-    }
+                // 詳細情報の同期 (完了画面用)
+                if (d.preset) runPreset = d.preset;
+                if (d.str) runStrength = d.str;
+                if (d.total) runCount = d.total;
 
-    function setAllServos(angle) {
-      document.getElementById('all-servo-val').innerText = angle + '°';
-      for (let i = 1; i <= 3; i++) {
-        document.getElementById('servo' + i + '-val').innerText = angle + '°';
-        const el = document.getElementById('inp-servo-' + i);
-        if (el) el.value = angle;
-      }
-      fetch(`/api/servo_all?angle=${angle}`);
-    }
+                let txt = "動作中";
+                if (d.state === 'PREPARE_SQUEEZE') txt = "準備中...";
+                if (d.state === 'SQUEEZING') txt = "握り中";
+                if (d.state === 'HOLDING') txt = "保持中";
+                if (d.state === 'RELEASING') txt = "解放中";
+                document.getElementById('status-badge').innerText = `${txt} (${d.cycle + 1}/${d.total})`;
 
-    function setServo(servoNum, angle) {
-      document.getElementById(`servo${servoNum}-val`).innerText = angle + '°';
-      fetch(`/api/servo_individual?servo=${servoNum}&angle=${angle}`);
-    }
+                sessionTotalDur = d.dur || 1;
+                const estimatedStart = Date.now() - (d.elap || 0);
+                if (Math.abs(estimatedStart - sessionStartTime) > 500) {
+                  sessionStartTime = estimatedStart;
+                }
 
-    // 個別サーボ位置補正
-    function updateServoOffset(servoNum, value) {
-      document.getElementById(`servo${servoNum}-offset-disp`).innerText = value;
-      fetch(`/api/servo_offset?servo=${servoNum}&value=${value}`)
-        .then(r => r.text())
-        .then(d => console.log(`Servo ${servoNum} offset:`, value));
-    }
+              } else {
+                // IDLEに戻った = 動作完了
+                // FINISHED_BLINK状態も "IDLEではない" のでここには来ない = 完了画面は出ない
+                // FINISHED_BLINK -> IDLE に遷移した瞬間にここに来る
+                if (isRunning && !isStarting) {
+                  finishSession();
+                }
+              }
+              lastStatus = d.state;
+            })
+            .catch(e => {
+              setOnline(false);
+            })
+            .finally(() => {
+              // 動作中は高速ポーリング(200ms), 待機中は低速(1000ms)
+              const nextInterval = (isRunning || isStarting) ? 200 : 1000;
+              setTimeout(syncStatus, nextInterval);
+            });
+        }
+        // Start Polling
+        syncStatus();
 
-    // 初期化時に個別サーボオフセット読み込み
-    function fetchServoOffsets() {
-      for (let i = 1; i <= 3; i++) {
-        fetch(`/api/servo_offset?servo=${i}`)
-          .then(r => r.json())
-          .then(data => {
-            const offset = data.offset || 0;
-            document.getElementById(`inp-servo${i}-offset`).value = offset;
-            document.getElementById(`servo${i}-offset-disp`).innerText = offset;
-          })
-          .catch(e => console.error(`Failed to fetch servo ${i} offset:`, e));
-      }
-    }
+        function finishSession() {
+          if (!isRunning) return; // 既に完了済みなら何もしない
 
-    // --- My Presets (LocalStorage) ---
-    function saveMyPreset() {
-      const defaultName = "設定 " + (new Date().toLocaleString());
-      showPrompt("設定名を入力してください", defaultName).then(name => {
-        if (!name) return; // Cancelled
+          // Always clean up UI state
+          isRunning = false;
+          document.body.classList.remove('running');
+          document.getElementById('status-badge').innerText = "待機中";
+          document.getElementById('yt-fill').style.width = '0%';
+          updTimeDisp();
 
-        const preset = {
-          name: name,
-          hold: document.getElementById('inp-hold').value,
-          reach: document.getElementById('inp-reach').value,
-          str: document.getElementById('inp-str').value,
-          count: tgtCount,
-          sth: document.getElementById('inp-sth').value
-        };
+          // モックモード: 状態リセット
+          if (MOCKUP_MODE) {
+            mockStopAnimation();
+          }
 
-        const list = JSON.parse(localStorage.getItem('onigiri_presets') || "[]");
-        list.push(preset);
-        localStorage.setItem('onigiri_presets', JSON.stringify(list));
-        renderMyPresets();
-        showToast("保存しました");
-      });
-    }
+          if (hasSessionFinished) return; // Prevent double modal
+          hasSessionFinished = true;
 
-    function loadMyPreset(idx) {
-      const list = JSON.parse(localStorage.getItem('onigiri_presets') || "[]");
-      const p = list[idx];
-      if (!p) return;
+          if (!isManualStop) {
+            showCompletionModal();
+          }
+          isManualStop = false;
+        }
 
-      showConfirm(`「${p.name}」を読み込みますか？`).then(ok => {
-        if (!ok) return;
+        function showCompletionModal() {
+          const modal = document.getElementById('completion-modal');
+          document.getElementById('detail-preset').innerText = runPreset;
+          document.getElementById('detail-strength').innerText = runStrength + '%';
+          document.getElementById('detail-count').innerText = runCount + '回';
+          modal.classList.add('show');
+        }
 
-        document.getElementById('inp-hold').value = p.hold;
-        document.getElementById('inp-reach').value = p.reach;
-        document.getElementById('inp-str').value = p.str;
-        document.getElementById('inp-sth').value = p.sth || 10;
+        function closeCompletionModal() {
+          document.getElementById('completion-modal').classList.remove('show');
+        }
 
-        // Apply changes
-        saveHold(p.hold);
-        saveReach(p.reach);
-        saveSth(p.sth || 10);
-        // Sync Strength & Count
-        fetch(`/api/settings?str=${p.str}&cnt=${p.count}`).catch(() => { });
+        function setAllServos(angle) {
+          document.getElementById('all-servo-val').innerText = angle + '°';
+          for (let i = 1; i <= 3; i++) {
+            document.getElementById('servo' + i + '-val').innerText = angle + '°';
+            const el = document.getElementById('inp-servo-' + i);
+            if (el) el.value = angle;
+          }
+          fetch(`/api/servo_all?angle=${angle}`);
+        }
 
-        // UI update
-        updVal('str-disp', p.str, '%');
-        document.getElementById('sth-disp').innerText = p.sth || 10;
+        function setServo(servoNum, angle) {
+          document.getElementById(`servo${servoNum}-val`).innerText = angle + '°';
+          fetch(`/api/servo_individual?servo=${servoNum}&angle=${angle}`);
+        }
 
-        // Set Count
-        tgtCount = p.count;
-        document.querySelectorAll('.chk-btn').forEach(b => {
-          if (parseInt(b.innerText) == p.count) b.classList.add('active');
-          else b.classList.remove('active');
-        });
+        // 個別サーボ位置補正
+        function updateServoOffset(servoNum, value) {
+          document.getElementById(`servo${servoNum}-offset-disp`).innerText = value;
+          fetch(`/api/servo_offset?servo=${servoNum}&value=${value}`)
+            .then(r => r.text())
+            .then(d => console.log(`Servo ${servoNum} offset:`, value));
+        }
 
-        updTimeDisp();
-        showToast("読み込みました");
-      });
-    }
+        // 初期化時に個別サーボオフセット読み込み
+        function fetchServoOffsets() {
+          for (let i = 1; i <= 3; i++) {
+            fetch(`/api/servo_offset?servo=${i}`)
+              .then(r => r.json())
+              .then(data => {
+                const offset = data.offset || 0;
+                document.getElementById(`inp-servo${i}-offset`).value = offset;
+                document.getElementById(`servo${i}-offset-disp`).innerText = offset;
+              })
+              .catch(e => console.error(`Failed to fetch servo ${i} offset:`, e));
+          }
+        }
 
-    function deleteMyPreset(idx) {
-      showConfirm("本当に削除しますか？", true).then(ok => {
-        if (!ok) return;
-        const list = JSON.parse(localStorage.getItem('onigiri_presets') || "[]");
-        list.splice(idx, 1);
-        localStorage.setItem('onigiri_presets', JSON.stringify(list));
-        renderMyPresets();
-        showToast("削除しました");
-      });
-    }
+        // --- My Presets (LocalStorage) ---
+        function saveMyPreset() {
+          const defaultName = "設定 " + (new Date().toLocaleString());
+          showPrompt("設定名を入力してください", defaultName).then(name => {
+            if (!name) return; // Cancelled
 
-    function renderMyPresets() {
-      const list = JSON.parse(localStorage.getItem('onigiri_presets') || "[]");
-      const container = document.getElementById('my-preset-list');
-      container.innerHTML = "";
+            const preset = {
+              name: name,
+              hold: document.getElementById('inp-hold').value,
+              reach: document.getElementById('inp-reach').value,
+              str: document.getElementById('inp-str').value,
+              count: tgtCount,
+              sth: document.getElementById('inp-sth').value
+            };
 
-      if (list.length === 0) {
-        container.innerHTML = "<div style='color:#ccc; font-size:0.85rem; text-align:center;'>保存された設定はありません</div>";
-        return;
-      }
+            const list = JSON.parse(localStorage.getItem('onigiri_presets') || "[]");
+            list.push(preset);
+            localStorage.setItem('onigiri_presets', JSON.stringify(list));
+            renderMyPresets();
+            showToast("保存しました");
+          });
+        }
 
-      list.forEach((p, i) => {
-        const row = document.createElement('div');
-        row.style = "display:flex; justify-content:space-between; align-items:center; background:#fff; padding:10px; border-radius:12px; border:1px solid #eee;";
-        row.innerHTML = `
+        function loadMyPreset(idx) {
+          const list = JSON.parse(localStorage.getItem('onigiri_presets') || "[]");
+          const p = list[idx];
+          if (!p) return;
+
+          showConfirm(`「${p.name}」を読み込みますか？`).then(ok => {
+            if (!ok) return;
+
+            document.getElementById('inp-hold').value = p.hold;
+            document.getElementById('inp-reach').value = p.reach;
+            document.getElementById('inp-str').value = p.str;
+            document.getElementById('inp-sth').value = p.sth || 10;
+
+            // Apply changes
+            saveHold(p.hold);
+            saveReach(p.reach);
+            saveSth(p.sth || 10);
+            // Sync Strength & Count
+            fetch(`/api/settings?str=${p.str}&cnt=${p.count}`).catch(() => { });
+
+            // UI update
+            updVal('str-disp', p.str, '%');
+            document.getElementById('sth-disp').innerText = p.sth || 10;
+
+            // Set Count
+            tgtCount = p.count;
+            document.querySelectorAll('.chk-btn').forEach(b => {
+              if (parseInt(b.innerText) == p.count) b.classList.add('active');
+              else b.classList.remove('active');
+            });
+
+            updTimeDisp();
+            showToast("読み込みました");
+          });
+        }
+
+        function deleteMyPreset(idx) {
+          showConfirm("本当に削除しますか？", true).then(ok => {
+            if (!ok) return;
+            const list = JSON.parse(localStorage.getItem('onigiri_presets') || "[]");
+            list.splice(idx, 1);
+            localStorage.setItem('onigiri_presets', JSON.stringify(list));
+            renderMyPresets();
+            showToast("削除しました");
+          });
+        }
+
+        function renderMyPresets() {
+          const list = JSON.parse(localStorage.getItem('onigiri_presets') || "[]");
+          const container = document.getElementById('my-preset-list');
+          container.innerHTML = "";
+
+          if (list.length === 0) {
+            container.innerHTML = "<div style='color:#ccc; font-size:0.85rem; text-align:center;'>保存された設定はありません</div>";
+            return;
+          }
+
+          list.forEach((p, i) => {
+            const row = document.createElement('div');
+            row.style = "display:flex; justify-content:space-between; align-items:center; background:#fff; padding:10px; border-radius:12px; border:1px solid #eee;";
+            row.innerHTML = `
       <div style="font-weight:bold; font-size:0.95rem;">${p.name}</div>
       <div style="display:flex; gap:8px;">
         <button onclick="loadMyPreset(${i})" style="background:#56d364; color:white; border:none; padding:6px 12px; border-radius:14px; font-weight:bold; font-size:0.8rem;">適用</button>
         <button onclick="deleteMyPreset(${i})" style="background:#ff3b30; color:white; border:none; padding:6px 12px; border-radius:14px; font-weight:bold; font-size:0.8rem;">削除</button>
       </div>
     `;
-        container.appendChild(row);
-      });
-    }
-
-    // センサー距離更新（1秒ごと）
-    setInterval(() => {
-      fetch('/api/distance')
-        .then(r => r.json())
-        .then(data => {
-          document.getElementById('distance-disp').innerText = data.distance.toFixed(1);
-        })
-        .catch(e => console.error('Distance fetch error:', e));
-    }, 1000);
-
-    // 起動時に個別オフセット読み込み
-    fetchServoOffsets();
-    fetchServoLimits();
-
-    // 角度制限更新
-    function updateServoLimit(servoNum) {
-      const minVal = document.getElementById(`min-angle-${servoNum}`).value;
-      const maxVal = document.getElementById(`max-angle-${servoNum}`).value;
-
-      if (parseInt(minVal) > parseInt(maxVal)) {
-        // 最小値が最大値を超えないように
-        return;
-      }
-
-      fetch(`/api/servo_limit?servo=${servoNum}&min=${minVal}&max=${maxVal}`)
-        .then(r => r.text())
-        .then(d => console.log(`Servo ${servoNum} limit updated: ${minVal}-${maxVal}`));
-    }
-
-    // 角度制限読み込み
-    function fetchServoLimits() {
-      for (let i = 1; i <= 3; i++) {
-        fetch(`/api/servo_limit?servo=${i}`)
-          .then(r => r.json())
-          .then(d => {
-            document.getElementById(`min-angle-${i}`).value = d.min;
-            document.getElementById(`max-angle-${i}`).value = d.max;
+            container.appendChild(row);
           });
-      }
-    }
+        }
 
+        // センサー距離更新（1秒ごと）
+        setInterval(() => {
+          fetch('/api/distance')
+            .then(r => r.json())
+            .then(data => {
+              document.getElementById('distance-disp').innerText = data.distance.toFixed(1);
+            })
+            .catch(e => console.error('Distance fetch error:', e));
+        }, 1000);
 
-    // スクショ対策：レンジスライダーのダミー表示更新
-    function updateRangeDummy(val) {
-      const thumb = document.getElementById('inp-str-dummy-thumb');
-      if (thumb) {
-        thumb.style.left = val + '%';
-      }
-    }
-    // 初期化実行
-    setTimeout(() => {
-        const inp = document.getElementById('inp-str');
-        if(inp) updateRangeDummy(inp.value);
-    }, 500);
+        // 起動時に個別オフセット読み込み
+        fetchServoOffsets();
+        fetchServoLimits();
 
-    // ========================================
-    // スクリーンショット機能
-    // ========================================
-    function captureScreen() {
-      const frame = document.getElementById('iphone-frame');
-      const btn = document.querySelector('.capture-btn');
-      
-      // ボタンを一時的に非表示
-      btn.style.display = 'none';
-      
-      // 現在の値をダミーに反映（念のため）
-      updateRangeDummy(document.getElementById('inp-str').value);
+        // 角度制限更新
+        function updateServoLimit(servoNum) {
+          const minVal = document.getElementById(`min-angle-${servoNum}`).value;
+          const maxVal = document.getElementById(`max-angle-${servoNum}`).value;
 
-      html2canvas(frame, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: null,
-        logging: false,
-        onclone: (clonedDoc) => {
-          const dummy = clonedDoc.getElementById('inp-str-dummy');
-          const inp = clonedDoc.getElementById('inp-str');
-          const thumb = clonedDoc.getElementById('inp-str-dummy-thumb');
-          const originalInp = document.getElementById('inp-str');
-          
-          if(dummy && inp && originalInp){
-            // 元の値位置をクローンに適用
-            thumb.style.left = originalInp.value + '%';
-            
-            inp.style.visibility = 'hidden'; // inputを見えなくする
-            dummy.style.display = 'block';   // ダミーを表示
+          if (parseInt(minVal) > parseInt(maxVal)) {
+            // 最小値が最大値を超えないように
+            return;
+          }
+
+          fetch(`/api/servo_limit?servo=${servoNum}&min=${minVal}&max=${maxVal}`)
+            .then(r => r.text())
+            .then(d => console.log(`Servo ${servoNum} limit updated: ${minVal}-${maxVal}`));
+        }
+
+        // 角度制限読み込み
+        function fetchServoLimits() {
+          for (let i = 1; i <= 3; i++) {
+            fetch(`/api/servo_limit?servo=${i}`)
+              .then(r => r.json())
+              .then(d => {
+                document.getElementById(`min-angle-${i}`).value = d.min;
+                document.getElementById(`max-angle-${i}`).value = d.max;
+              });
           }
         }
-      }).then(function(canvas) {
-        // 画像としてダウンロード
-        const link = document.createElement('a');
-        link.download = 'niginigi-mockup-' + Date.now() + '.png';
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-        
-        // ボタンを再表示
-        btn.style.display = 'flex';
-      }).catch(function(err) {
-        console.error('Screenshot failed:', err);
-        alert('スクショに失敗しました');
-        btn.style.display = 'flex';
-      });
-    }
 
 
-  </script>
-      </div> <!-- End .app-content -->
-    </div> <!-- End .screen -->
+        // スクショ対策：レンジスライダーのダミー表示更新
+        function updateRangeDummy(val) {
+          const thumb = document.getElementById('inp-str-dummy-thumb');
+          if (thumb) {
+            thumb.style.left = val + '%';
+          }
+        }
+        // 初期化実行
+        setTimeout(() => {
+          const inp = document.getElementById('inp-str');
+          if (inp) updateRangeDummy(inp.value);
+        }, 500);
+
+        // ========================================
+        // スクリーンショット機能
+        // ========================================
+        function captureScreen() {
+          const frame = document.getElementById('iphone-frame');
+          const btn = document.querySelector('.capture-btn');
+
+          // ボタンを一時的に非表示
+          btn.style.display = 'none';
+
+          // 現在の値をダミーに反映（念のため）
+          updateRangeDummy(document.getElementById('inp-str').value);
+
+          html2canvas(frame, {
+            scale: 2,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: null,
+            logging: false,
+            onclone: (clonedDoc) => {
+              const dummy = clonedDoc.getElementById('inp-str-dummy');
+              const inp = clonedDoc.getElementById('inp-str');
+              const thumb = clonedDoc.getElementById('inp-str-dummy-thumb');
+              const originalInp = document.getElementById('inp-str');
+
+              if (dummy && inp && originalInp) {
+                // 元の値位置をクローンに適用
+                thumb.style.left = originalInp.value + '%';
+
+                inp.style.visibility = 'hidden'; // inputを見えなくする
+                dummy.style.display = 'block';   // ダミーを表示
+              }
+            }
+          }).then(function (canvas) {
+            // 画像としてダウンロード
+            const link = document.createElement('a');
+            link.download = 'niginigi-mockup-' + Date.now() + '.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+
+            // ボタンを再表示
+            btn.style.display = 'flex';
+          }).catch(function (err) {
+            console.error('Screenshot failed:', err);
+            alert('スクショに失敗しました');
+            btn.style.display = 'flex';
+          });
+        }
+
+
+      </script>
+    </div> <!-- End .app-content -->
+  </div> <!-- End .screen -->
   </div> <!-- End .iphone-frame -->
 </body>
 
