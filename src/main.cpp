@@ -1,4 +1,4 @@
-// 動作確認済みバージョン (Once it works!)
+
 #include <Adafruit_NeoPixel.h>
 #include <Arduino.h>
 #include <ArduinoJson.h>
@@ -11,67 +11,34 @@
 #include <WiFiManager.h>
 #include <time.h>
 #include <vector>
-
-// ---------------------------------------------------------------
-// ハードウェア定数
-// ---------------------------------------------------------------
 static const int NUM_SERVOS    = 3;
 static const int SERVO_PINS[NUM_SERVOS] = {25, 26, 27};
-static const int US_AT_0_DEG   = 500;   // 0度   (閉/強)
-static const int US_AT_270_DEG = 2500;  // 270度 (開/弱)
-
+static const int US_AT_0_DEG   = 500;
+static const int US_AT_270_DEG = 2500;
 static const int LED_PIN   = 13;
 static const int LED_COUNT = 35;
-
 static const int  TRIG_PIN = 32;
 static const int  ECHO_PIN = 33;
-
 static const byte DNS_PORT = 53;
-
-// Preferences キー（サーボインデックスに対応）
 static const char* PREF_OFFSET_KEYS[NUM_SERVOS]    = {"servo1Off", "servo2Off", "servo3Off"};
 static const char* PREF_MIN_ANGLE_KEYS[NUM_SERVOS] = {"minAng1",   "minAng2",   "minAng3"};
 static const char* PREF_MAX_ANGLE_KEYS[NUM_SERVOS] = {"maxAng1",   "maxAng2",   "maxAng3"};
-
-// ---------------------------------------------------------------
-// グローバルオブジェクト
-// ---------------------------------------------------------------
 WebServer   server(80);
 DNSServer   dnsServer;
 Preferences preferences;
-
-// ---------------------------------------------------------------
-// サーボ
-// ---------------------------------------------------------------
 Servo servos[NUM_SERVOS];
 int   servoOffsets[NUM_SERVOS] = {0,   0,   0};
 int   minAngles[NUM_SERVOS]    = {0,   0,   0};
 int   maxAngles[NUM_SERVOS]    = {270, 270, 270};
-
-// ---------------------------------------------------------------
-// WS2812B LED
-// ---------------------------------------------------------------
 Adafruit_NeoPixel pixels(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 bool     ledManualMode   = false;
 uint32_t currentLedColor = 0;
-
 void updateLed(uint32_t color) {
   for (int i = 0; i < pixels.numPixels(); i++) {
     pixels.setPixelColor(i, color);
   }
   pixels.show();
 }
-
-// ---------------------------------------------------------------
-// 状態定義
-// - IDLE:            待機中
-// - PREPARE_SQUEEZE: 締め付け準備中
-// - SQUEEZING:       締め付け中
-// - HOLDING:         締め付け保持中
-// - RELEASING:       緩め中
-// - WAIT_CYCLE:      次のサイクル待機中
-// - FINISHED_BLINK:  完了点滅中
-// ---------------------------------------------------------------
 enum State {
   IDLE = 0,
   PREPARE_SQUEEZE,
@@ -81,15 +48,10 @@ enum State {
   WAIT_CYCLE,
   FINISHED_BLINK
 };
-
 State         currentState   = IDLE;
 State         lastState      = IDLE;
 unsigned long stateStartTime   = 0;
 unsigned long sessionStartTime = 0;
-
-// ---------------------------------------------------------------
-// 動作パラメータ
-// ---------------------------------------------------------------
 float holdTimeSec  = 0.5f;
 float reachTimeSec = 0.5f;
 int   targetStrength = 90;
@@ -97,23 +59,14 @@ int   targetCount    = 3;
 int   currentCycle   = 0;
 int   activeLedCount = 35;
 int   pin13State     = 0;
-
 bool gradationEnabled = false;
 int  gradationStart   = 50;
 int  gradationEnd     = 100;
-
-// ---------------------------------------------------------------
-// HC-SR04 センサー
-// ---------------------------------------------------------------
 float         currentDistance     = 0.0f;
 unsigned long lastDistanceMeasure = 0;
 bool          sensorEnabled       = false;
 float         sensorThreshold     = 10.0f;
 int           sensorTriggerCount  = 0;
-
-// ---------------------------------------------------------------
-// 履歴
-// ---------------------------------------------------------------
 struct HistoryItem {
   String timeStr;
   String preset;
@@ -122,7 +75,6 @@ struct HistoryItem {
 };
 std::vector<HistoryItem> historyLog;
 String currentSessionPreset = "Custom";
-
 void loadHistoryFromFile() {
   File file = LittleFS.open("/history.json", "r");
   if (!file) {
@@ -147,7 +99,6 @@ void loadHistoryFromFile() {
   }
   Serial.printf("Loaded %d history items\n", historyLog.size());
 }
-
 void saveHistoryToFile() {
   JsonDocument doc;
   JsonArray    arr = doc.to<JsonArray>();
@@ -167,36 +118,21 @@ void saveHistoryToFile() {
   file.close();
   Serial.printf("Saved %d history items\n", historyLog.size());
 }
-
-// ---------------------------------------------------------------
-// サーボ制御
-// ---------------------------------------------------------------
 int strengthToAngle(int strength) {
   strength = constrain(strength, 0, 100);
-  // 強度0% → 270度(全開), 強度100% → 90度(最大閉)
   return map(strength, 0, 100, 270, 90);
 }
-
-// 安全なサーボ制御: 角度制限 → オフセット補正 → 物理限界クランプ → 出力
 void setServoAngleSafe(int idx, int targetAngle) {
   if (idx < 0 || idx >= NUM_SERVOS) return;
-
-  // 1. 角度制限（設定された最小/最大値でクランプ）
   targetAngle = constrain(targetAngle, minAngles[idx], maxAngles[idx]);
-
-  // 2. オフセット補正と物理限界クランプ
   int correctedAngle = constrain(targetAngle - servoOffsets[idx], 0, 270);
-
-  // 3. マイクロ秒に変換して出力
   int us = map(correctedAngle, 0, 270, US_AT_0_DEG, US_AT_270_DEG);
   Serial.printf("S%d->%d(%dus)\n", idx + 1, correctedAngle, us);
-
   if (!servos[idx].attached()) {
     servos[idx].attach(SERVO_PINS[idx], US_AT_0_DEG, US_AT_270_DEG);
   }
   servos[idx].writeMicroseconds(us);
 }
-
 void attachAllServos() {
   for (int i = 0; i < NUM_SERVOS; i++) {
     if (!servos[i].attached()) {
@@ -204,7 +140,6 @@ void attachAllServos() {
     }
   }
 }
-
 void detachAllServos() {
   for (int i = 0; i < NUM_SERVOS; i++) {
     if (servos[i].attached()) {
@@ -212,36 +147,27 @@ void detachAllServos() {
     }
   }
 }
-
 void setAllServosAngle(int angle) {
   for (int i = 0; i < NUM_SERVOS; i++) {
     setServoAngleSafe(i, angle);
   }
 }
-
-// ---------------------------------------------------------------
-// 距離センサー (HC-SR04)
-// ---------------------------------------------------------------
 float readRawDistance() {
   digitalWrite(TRIG_PIN, LOW);
   delayMicroseconds(2);
   digitalWrite(TRIG_PIN, HIGH);
   delayMicroseconds(10);
   digitalWrite(TRIG_PIN, LOW);
-
-  long duration = pulseIn(ECHO_PIN, HIGH, 3000); // 3msタイムアウト(約50cm)
+  long duration = pulseIn(ECHO_PIN, HIGH, 3000);
   if (duration == 0) return 999.0f;
   return duration * 0.034f / 2.0f;
 }
-
 float measureDistance() {
-  // 3サンプル中央値フィルタ
   float readings[3];
   for (int i = 0; i < 3; i++) {
     readings[i] = readRawDistance();
     delay(1);
   }
-  // バブルソート
   for (int i = 0; i < 2; i++) {
     for (int j = 0; j < 2 - i; j++) {
       if (readings[j] > readings[j + 1]) {
@@ -251,20 +177,14 @@ float measureDistance() {
       }
     }
   }
-  return readings[1]; // 中央値
+  return readings[1];
 }
-
-// ---------------------------------------------------------------
-// APIハンドラ 共通ヘルパー
-// ---------------------------------------------------------------
-// 全サーボを指定角度に動かし、状態をIDLEにリセットする
 void moveServosToAngle(int angle) {
   currentState   = IDLE;
   stateStartTime = millis();
   attachAllServos();
   setAllServosAngle(angle);
 }
-
 static const char* stateToString(State s) {
   switch (s) {
     case IDLE:            return "IDLE";
@@ -277,10 +197,6 @@ static const char* stateToString(State s) {
     default:              return "UNKNOWN";
   }
 }
-
-// ---------------------------------------------------------------
-// APIハンドラ
-// ---------------------------------------------------------------
 void handleRoot() {
   File file = LittleFS.open("/index.html", "r");
   if (!file) {
@@ -290,14 +206,12 @@ void handleRoot() {
   server.streamFile(file, "text/html");
   file.close();
 }
-
 void handleApiStart() {
   if (server.hasArg("str"))
     targetStrength = constrain(server.arg("str").toInt(), 0, 100);
   if (server.hasArg("cnt"))
     targetCount = server.arg("cnt").toInt();
   currentSessionPreset = server.hasArg("preset") ? server.arg("preset") : "カスタム";
-
   if (server.hasArg("grad_start") && server.hasArg("grad_end")) {
     gradationEnabled = true;
     gradationStart   = constrain(server.arg("grad_start").toInt(), 0, 100);
@@ -306,18 +220,15 @@ void handleApiStart() {
   } else {
     gradationEnabled = false;
   }
-
   preferences.putInt("str", targetStrength);
   preferences.putInt("cnt", targetCount);
   Serial.printf("[API] Start: Str=%d%%, Cnt=%d, Preset=%s\n",
                 targetStrength, targetCount, currentSessionPreset.c_str());
-
   currentCycle     = 0;
   sessionStartTime = millis();
   currentState     = PREPARE_SQUEEZE;
   server.send(200, "text/plain", "OK");
 }
-
 void handleApiStop() {
   Serial.println("[API] Stop");
   currentState = IDLE;
@@ -325,7 +236,6 @@ void handleApiStop() {
   setAllServosAngle(270);
   server.send(200, "text/plain", "OK");
 }
-
 void handleApiSettings() {
   if (server.hasArg("led_cnt")) {
     activeLedCount = constrain(server.arg("led_cnt").toInt(), 1, 35);
@@ -352,7 +262,6 @@ void handleApiSettings() {
     sensorThreshold = server.arg("sth").toFloat();
     preferences.putFloat("sth", sensorThreshold);
   }
-
   JsonDocument doc;
   doc["hold"]    = holdTimeSec;
   doc["reach"]   = reachTimeSec;
@@ -367,11 +276,9 @@ void handleApiSettings() {
   serializeJson(doc, output);
   server.send(200, "application/json", output);
 }
-
 void handleApiStatus() {
   float cycleDur = reachTimeSec + holdTimeSec + 0.5f;
   float totalDur = 0.3f + (targetCount * cycleDur);
-
   JsonDocument doc;
   doc["state"]  = stateToString(currentState);
   doc["cycle"]  = currentCycle;
@@ -385,7 +292,6 @@ void handleApiStatus() {
   serializeJson(doc, output);
   server.send(200, "application/json", output);
 }
-
 void handleApiManual() {
   if (server.hasArg("val")) {
     int pct         = constrain(server.arg("val").toInt(), 0, 100);
@@ -395,7 +301,6 @@ void handleApiManual() {
   }
   server.send(200, "text/plain", "OK");
 }
-
 void handleApiManualAngle() {
   if (server.hasArg("angle")) {
     int angle = constrain(server.arg("angle").toInt(), 90, 270);
@@ -404,7 +309,6 @@ void handleApiManualAngle() {
   }
   server.send(200, "text/plain", "OK");
 }
-
 void handleApiServoAll() {
   if (server.hasArg("angle")) {
     int angle = constrain(server.arg("angle").toInt(), 90, 270);
@@ -413,19 +317,17 @@ void handleApiServoAll() {
   }
   server.send(200, "text/plain", "OK");
 }
-
 void handleApiServoIndividual() {
   if (server.hasArg("servo") && server.hasArg("angle")) {
     int servoNum = server.arg("servo").toInt();
     int angle    = server.arg("angle").toInt();
     currentState   = IDLE;
     stateStartTime = millis();
-    setServoAngleSafe(servoNum - 1, angle); // APIは1始まり、配列は0始まり
+    setServoAngleSafe(servoNum - 1, angle);
     Serial.printf("[API] Servo %d: %d degrees\n", servoNum, angle);
   }
   server.send(200, "text/plain", "OK");
 }
-
 void handleApiHistory() {
   JsonDocument doc;
   JsonArray    arr = doc.to<JsonArray>();
@@ -440,7 +342,6 @@ void handleApiHistory() {
   serializeJson(doc, output);
   server.send(200, "application/json", output);
 }
-
 void handleApiServoOffset() {
   if (!server.hasArg("servo")) {
     server.send(400, "text/plain", "Missing servo parameter");
@@ -452,7 +353,6 @@ void handleApiServoOffset() {
     return;
   }
   int idx = servoNum - 1;
-
   if (server.hasArg("value")) {
     int value = server.arg("value").toInt();
     if (value < -90 || value > 90) {
@@ -461,7 +361,7 @@ void handleApiServoOffset() {
     }
     servoOffsets[idx] = value;
     preferences.putInt(PREF_OFFSET_KEYS[idx], value);
-    setServoAngleSafe(idx, 270); // 現在のオフセットをプレビュー（全開位置）
+    setServoAngleSafe(idx, 270);
     Serial.printf("[API] Servo %d Offset: %d\n", servoNum, value);
     server.send(200, "text/plain", "OK");
   } else {
@@ -472,7 +372,6 @@ void handleApiServoOffset() {
     server.send(200, "application/json", output);
   }
 }
-
 void handleApiServoLimit() {
   if (!server.hasArg("servo")) {
     server.send(400, "text/plain", "Missing servo param");
@@ -484,7 +383,6 @@ void handleApiServoLimit() {
     return;
   }
   int idx = servoNum - 1;
-
   if (server.hasArg("min") && server.hasArg("max")) {
     minAngles[idx] = constrain(server.arg("min").toInt(), 0, 270);
     maxAngles[idx] = constrain(server.arg("max").toInt(), 0, 270);
@@ -500,7 +398,6 @@ void handleApiServoLimit() {
     server.send(200, "application/json", output);
   }
 }
-
 void handleApiLed() {
   int r = 0, g = 0, b = 0;
   if (server.hasArg("color")) {
@@ -521,7 +418,6 @@ void handleApiLed() {
   Serial.printf("[API] LED Manual: R%d G%d B%d\n", r, g, b);
   server.send(200, "text/plain", "OK");
 }
-
 void handleApiLedMode() {
   if (server.hasArg("mode")) {
     ledManualMode = (server.arg("mode") != "auto");
@@ -529,7 +425,6 @@ void handleApiLedMode() {
   }
   server.send(200, "text/plain", "OK");
 }
-
 void handleApiSensorMode() {
   if (server.hasArg("val")) {
     sensorEnabled = (server.arg("val").toInt() == 1);
@@ -538,7 +433,6 @@ void handleApiSensorMode() {
   }
   server.send(200, "text/plain", "OK");
 }
-
 void handleApiDistance() {
   JsonDocument doc;
   doc["distance"] = currentDistance;
@@ -546,18 +440,12 @@ void handleApiDistance() {
   serializeJson(doc, output);
   server.send(200, "application/json", output);
 }
-
-// ---------------------------------------------------------------
-// setup
-// ---------------------------------------------------------------
 void setup() {
   Serial.begin(115200);
-
   if (!LittleFS.begin(true)) {
     Serial.println("LittleFS mount failed");
   }
   loadHistoryFromFile();
-
   preferences.begin("job", false);
   holdTimeSec     = preferences.getFloat("hold",    0.5f);
   reachTimeSec    = preferences.getFloat("reach",   0.5f);
@@ -572,15 +460,12 @@ void setup() {
     minAngles[i]    = preferences.getInt(PREF_MIN_ANGLE_KEYS[i], 0);
     maxAngles[i]    = preferences.getInt(PREF_MAX_ANGLE_KEYS[i], 270);
   }
-
   pinMode(TRIG_PIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
   pinMode(LED_PIN,  OUTPUT);
-
   pixels.begin();
   pixels.setBrightness(50);
   pixels.show();
-
   ESP32PWM::allocateTimer(0);
   ESP32PWM::allocateTimer(1);
   ESP32PWM::allocateTimer(2);
@@ -590,19 +475,15 @@ void setup() {
     Serial.printf("Servo%d attached: %d\n", i + 1,
                   servos[i].attach(SERVO_PINS[i], US_AT_0_DEG, US_AT_270_DEG));
   }
-  setAllServosAngle(270); // 初期位置（全開）
-
-  // AP モード設定
+  setAllServosAngle(270);
   WiFi.disconnect(true);
   delay(100);
   WiFi.mode(WIFI_AP);
   WiFi.softAP("焼きそば四郎");
   Serial.print("AP IP: ");
   Serial.println(WiFi.softAPIP());
-
   dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
   dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
-
   server.on("/",                     handleRoot);
   server.on("/api/status",           handleApiStatus);
   server.on("/api/start",            handleApiStart);
@@ -620,31 +501,20 @@ void setup() {
   server.on("/api/led",              handleApiLed);
   server.on("/api/led_mode",         handleApiLedMode);
   server.onNotFound([]() { handleRoot(); });
-
   server.begin();
   Serial.println("Ready.");
 }
-
-// ---------------------------------------------------------------
-// loop
-// ---------------------------------------------------------------
 void loop() {
   dnsServer.processNextRequest();
   server.handleClient();
-
   unsigned long now = millis();
-
-  // HC-SR04センサー測定（200msごと）
   if (now - lastDistanceMeasure > 200) {
     currentDistance     = measureDistance();
     lastDistanceMeasure = now;
-
-    // IDLEのときのみセンサートリガー判定
     if (currentState == IDLE) {
       if (sensorEnabled && currentDistance < sensorThreshold && currentDistance > 0.1f) {
         sensorTriggerCount++;
         Serial.printf("Sensor Detect: %.1f cm (Count: %d)\n", currentDistance, sensorTriggerCount);
-        // 3回連続検知（約600ms）で自動開始
         if (sensorTriggerCount >= 3) {
           Serial.println(">>> Sensor START Triggered");
           sensorTriggerCount   = 0;
@@ -658,8 +528,6 @@ void loop() {
       }
     }
   }
-
-  // 状態遷移時の処理
   if (currentState != lastState) {
     stateStartTime = now;
     Serial.printf("State: %d\n", currentState);
@@ -669,18 +537,14 @@ void loop() {
     }
     lastState = currentState;
   }
-
-  // --- LED 自動制御 ---
   static int      lastLedState      = -1;
   static bool     lastLedManualMode = false;
   static uint32_t lastLedManualColor = 0;
-
   bool needLedUpdate =
       (ledManualMode != lastLedManualMode) ||
       (!ledManualMode && (int)currentState != lastLedState) ||
       (ledManualMode  && lastLedManualColor != currentLedColor) ||
-      (currentState   != IDLE && !ledManualMode); // 動作中はアニメーションのため毎フレーム更新
-
+      (currentState   != IDLE && !ledManualMode);
   if (needLedUpdate) {
     if (ledManualMode) {
       updateLed(currentLedColor);
@@ -690,9 +554,7 @@ void loop() {
         case IDLE:
           updateLed(0);
           break;
-
         case FINISHED_BLINK: {
-          // 200ms間隔で3回点滅（緑）
           unsigned long elapsed = millis() - stateStartTime;
           bool on = (elapsed < 200) ||
                     (elapsed >= 400 && elapsed < 600) ||
@@ -700,20 +562,16 @@ void loop() {
           updateLed(on ? pixels.Color(0, 255, 0) : 0);
           break;
         }
-
         case WAIT_CYCLE:
           updateLed(0);
           break;
-
         case RELEASING:
           if (currentCycle >= targetCount) {
-            // 最終サイクル完了: 全LED全灯（緑）
             for (int i = 0; i < LED_COUNT; i++) {
               pixels.setPixelColor(i, i < activeLedCount ? pixels.Color(0, 255, 0) : 0);
             }
             pixels.show();
           } else {
-            // 進捗バー表示（緑）
             float cycleDur = reachTimeSec + holdTimeSec + 0.3f;
             float totalDur = 0.3f + ((float)targetCount * cycleDur);
             float progress = constrain((float)(millis() - sessionStartTime) / (totalDur * 1000.0f), 0.0f, 1.0f);
@@ -724,9 +582,7 @@ void loop() {
             pixels.show();
           }
           break;
-
         default: {
-          // 進捗バー表示（緑）
           float cycleDur = reachTimeSec + holdTimeSec + 0.3f;
           float totalDur = 0.3f + ((float)targetCount * cycleDur);
           float progress = constrain((float)(millis() - sessionStartTime) / (totalDur * 1000.0f), 0.0f, 1.0f);
@@ -742,13 +598,10 @@ void loop() {
     lastLedState      = (int)currentState;
     lastLedManualMode = ledManualMode;
   }
-
-  // --- メインステートマシン ---
   switch (currentState) {
     case IDLE:
       yield();
       break;
-
     case PREPARE_SQUEEZE:
       setAllServosAngle(270);
       if (now - stateStartTime > 300) {
@@ -756,12 +609,9 @@ void loop() {
       }
       yield();
       break;
-
     case SQUEEZING: {
       unsigned long duration = (unsigned long)(reachTimeSec * 1000);
       unsigned long elapsed  = now - stateStartTime;
-
-      // グラデーション時: 現在サイクルの目標強度を線形補間で計算
       int currentTargetStr = targetStrength;
       if (gradationEnabled) {
         float progress = (targetCount > 1)
@@ -770,7 +620,6 @@ void loop() {
         currentTargetStr = gradationStart + (int)((gradationEnd - gradationStart) * progress);
       }
       int targetAngle = strengthToAngle(currentTargetStr);
-
       if (elapsed >= duration) {
         setAllServosAngle(targetAngle);
         currentState = HOLDING;
@@ -782,7 +631,6 @@ void loop() {
       yield();
       break;
     }
-
     case HOLDING:
       if (now - stateStartTime >= (unsigned long)(holdTimeSec * 1000)) {
         currentState = RELEASING;
@@ -790,16 +638,12 @@ void loop() {
       }
       yield();
       break;
-
     case RELEASING:
       setAllServosAngle(270);
-      // サーボが物理的に戻るまで500ms待機（データシート: 180度 ≈ 0.48s）
       if (now - stateStartTime >= 500) {
         if (currentCycle >= targetCount) {
           Serial.println("Finished.");
           currentState = FINISHED_BLINK;
-
-          // 履歴に追加（最大20件）
           HistoryItem newItem;
           newItem.timeStr  = String(millis() / 1000) + "秒前";
           newItem.preset   = currentSessionPreset;
@@ -816,7 +660,6 @@ void loop() {
       }
       yield();
       break;
-
     case FINISHED_BLINK:
       if (now - stateStartTime >= 1000) {
         currentState = IDLE;
@@ -824,7 +667,6 @@ void loop() {
       }
       yield();
       break;
-
     case WAIT_CYCLE:
       currentState = SQUEEZING;
       yield();
